@@ -120,6 +120,14 @@ def get_mood(mood: str = ""):
 
     results = tmdb_svc.enrich_with_posters(results, max_items=20)
 
+    # Sort by rating
+    results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
+
+    # Better torrent queries for series
+    for r in results:
+        if r.get("type") in ("series", "tv"):
+            r["torrent_query"] = f"{r['title']} S01 complete"
+
     result = {"mood": mood, "matched_categories": matched_cats, "results": results}
     _cache[cache_key] = {"data": result, "ts": now}
     return result
@@ -165,6 +173,12 @@ def get_similar(title: str = ""):
         results = _google_search_titles(f"movies similar to {title} recommendations reddit")[:20]
 
     results = results[:30]
+
+    # Better torrent queries for series
+    for r in results:
+        if r.get("type") in ("series", "tv"):
+            r["torrent_query"] = f"{r['title']} S01 complete"
+
     result = {"query": title, "matched_categories": found_categories, "results": results}
     _cache[cache_key] = {"data": result, "ts": now}
     return result
@@ -292,13 +306,14 @@ def get_library():
                 year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
                 poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
                 s_type = "series" if kind == "tv" else "movie"
+                torrent_q = f"{s_title} S01 complete" if s_type == "series" else f"{s_title} {year}".strip()
                 results.append({
                     "title": s_title, "year": year, "type": s_type,
                     "description": (s.get("overview") or "")[:200],
                     "rating": str(round(s.get("vote_average", 0), 1)),
                     "poster": poster,
                     "tmdb_id": str(s.get("id", "")),
-                    "torrent_query": f"{s_title} {year}".strip(),
+                    "torrent_query": torrent_q,
                     "genre_ids": s.get("genre_ids", []),
                 })
             return results
@@ -328,8 +343,14 @@ def get_library():
                 seen.add(key)
                 suggestions.append(rec)
 
-    random.shuffle(suggestions)
+    # Sort by rating (highest first), then limit
+    suggestions.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
     suggestions = suggestions[:30]
+
+    # Build better torrent queries for series
+    for s in suggestions:
+        if s.get("type") in ("series", "tv"):
+            s["torrent_query"] = f"{s['title']} S01 complete"
 
     result = {
         "genres": top_genres,
@@ -351,6 +372,15 @@ def get_trending(time_window: str = "week"):
         return _cache[cache_key]["data"]
 
     results = tmdb_svc.get_trending(time_window)
+
+    # Sort by rating
+    results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
+
+    # Better torrent queries for series
+    for r in results:
+        if r.get("type") in ("series", "tv"):
+            r["torrent_query"] = f"{r['title']} S01 complete"
+
     result = {"results": results, "time_window": time_window}
     _cache[cache_key] = {"data": result, "ts": now}
     return result

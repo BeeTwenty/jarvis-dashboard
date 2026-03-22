@@ -65,7 +65,7 @@ def search_similar(title: str) -> tuple[list, set]:
                         "rating": str(round(s.get("vote_average", 0), 1)),
                         "poster": poster,
                         "tmdb_id": str(s.get("id", "")),
-                        "torrent_query": f"{s_title} {year}".strip(),
+                        "torrent_query": f"{s_title} S01 complete",
                     })
 
     return tmdb_results, seen_tmdb
@@ -248,7 +248,7 @@ def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
         "tagline": details.get("tagline", ""),
         "status": details.get("status", ""),
         "tmdb_id": str(tmdb_id), "type": kind,
-        "torrent_query": f"{title} {year}".strip(),
+        "torrent_query": f"{title} S01 complete" if kind == "tv" else f"{title} {year}".strip(),
         "similar_tmdb": similar_tmdb,
     }
 
@@ -291,7 +291,7 @@ def get_trending(time_window: str = "week") -> list:
                 "rating": str(round(item.get("vote_average", 0), 1)),
                 "poster": poster,
                 "tmdb_id": str(item.get("id", "")),
-                "torrent_query": f"{title} {year}".strip(),
+                "torrent_query": f"{title} S01 complete",
                 "genre_ids": item.get("genre_ids", []),
             })
 

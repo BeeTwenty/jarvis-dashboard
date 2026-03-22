@@ -53,31 +53,50 @@ def request(path: str, method: str = "GET", body: str | None = None, retry: bool
         return {"error": f"qBittorrent: {e}"}
 
 
+def _search_apibay(query: str) -> list:
+    """Search apibay for a single query. Returns list of result dicts."""
+    client = httpx.Client(timeout=15)
+    resp = client.get(
+        f"https://apibay.org/q.php?q={urllib.parse.quote(query)}",
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    results = resp.json()
+    if not isinstance(results, list):
+        return []
+    filtered = []
+    for r in results[:20]:
+        if r.get("id") == "0" or r.get("name") == "No results returned":
+            continue
+        filtered.append({
+            "name": r.get("name", "Unknown"),
+            "size": int(r.get("size", 0)),
+            "seeders": int(r.get("seeders", 0)),
+            "leechers": int(r.get("leechers", 0)),
+            "info_hash": r.get("info_hash", ""),
+            "added": r.get("added", ""),
+            "category": r.get("category", ""),
+        })
+    return filtered
+
+
 def search_torrents(query: str) -> dict | list:
     try:
-        async_client = httpx.Client(timeout=15)
-        resp = async_client.get(
-            f"https://apibay.org/q.php?q={urllib.parse.quote(query)}",
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        results = resp.json()
-        if not isinstance(results, list):
-            return {"error": "Unexpected response"}
-        filtered = []
-        for r in results[:20]:
-            if r.get("id") == "0" or r.get("name") == "No results returned":
-                continue
-            filtered.append({
-                "name": r.get("name", "Unknown"),
-                "size": int(r.get("size", 0)),
-                "seeders": int(r.get("seeders", 0)),
-                "leechers": int(r.get("leechers", 0)),
-                "info_hash": r.get("info_hash", ""),
-                "added": r.get("added", ""),
-                "category": r.get("category", ""),
-            })
-        filtered.sort(key=lambda x: x["seeders"], reverse=True)
-        return filtered
+        results = _search_apibay(query)
+
+        # If no results, try alternate queries (helps for series)
+        if not results:
+            # Strip "S01 complete" and try just the title
+            alt = query.replace(" S01 complete", "").replace(" complete", "").strip()
+            if alt != query:
+                results = _search_apibay(alt)
+
+        # Still nothing? Try with "season 1"
+        if not results and "S01" in query:
+            alt = query.replace("S01 complete", "season 1").strip()
+            results = _search_apibay(alt)
+
+        results.sort(key=lambda x: x["seeders"], reverse=True)
+        return results
     except Exception as e:
         return {"error": str(e)}
 
