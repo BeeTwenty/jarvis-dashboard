@@ -62,7 +62,7 @@ function getDetailHref(rec: Recommendation): string | null {
   return `/discover/${type}/${rec.tmdb_id}`
 }
 
-function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddTorrent: (query: string) => void }) {
+function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddTorrent: (rec: Recommendation) => void }) {
   const href = getDetailHref(rec)
   const cardContent = (
     <div className={styles.recCardInner}>
@@ -86,7 +86,7 @@ function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddT
         <div className={styles.recActions}>
           <button
             className={`btn btn-sm ${styles.torrentBtn}`}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddTorrent(rec.torrent_query) }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddTorrent(rec) }}
           >
             <Plus size={12} /> Find Torrent
           </button>
@@ -106,7 +106,18 @@ function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddT
   return <div className={styles.recCard}>{cardContent}</div>
 }
 
-function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => void }) {
+interface SeasonInfo {
+  season_number: number
+  name: string
+  episode_count: number
+  existing_episodes: number[]
+  existing_count: number
+  complete: boolean
+  torrent_query: string
+  poster: string
+}
+
+function TorrentSearchModal({ query, onClose, category }: { query: string; onClose: () => void; category?: string }) {
   const [results, setResults] = useState<any[] | null>(null)
   const [searching, setSearching] = useState(true)
 
@@ -129,7 +140,7 @@ function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => 
     const r = await api('/api/torrent-add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ magnet }),
+      body: JSON.stringify({ magnet, category: category || '' }),
     })
     toast(r.error ? r.error : `Added: ${name.substring(0, 50)}`, r.error ? 'error' : 'success')
     onClose()
@@ -168,6 +179,79 @@ function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => 
   )
 }
 
+function SeriesSeasonModal({ rec, onClose }: { rec: Recommendation; onClose: () => void }) {
+  const [seasons, setSeasons] = useState<SeasonInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [title, setTitle] = useState(rec.title)
+  const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      const r = await api<{ title: string; seasons: SeasonInfo[] }>(
+        `/api/recommendations/series-seasons?tmdb_id=${rec.tmdb_id}&title=${encodeURIComponent(rec.title)}`
+      )
+      setLoading(false)
+      if (r.data) {
+        setSeasons(r.data.seasons || [])
+        setTitle(r.data.title || rec.title)
+      }
+    }
+    load()
+  }, [rec.tmdb_id, rec.title])
+
+  if (torrentQuery) {
+    return <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} category="tv" />
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+        <div className={styles.modalHeader}>
+          <h3>{title}</h3>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className={styles.modalBody}>
+          {loading ? (
+            <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading seasons...</div>
+          ) : seasons.length === 0 ? (
+            <div className="empty-state" style={{ padding: 16 }}>No season data found</div>
+          ) : (
+            <div className={styles.seasonList}>
+              {seasons.map(s => (
+                <div key={s.season_number} className={`${styles.seasonRow} ${s.complete ? styles.seasonComplete : ''}`}>
+                  <div className={styles.seasonInfo}>
+                    <span className={styles.seasonName}>{s.name}</span>
+                    <span className={styles.seasonEps}>
+                      {s.existing_count > 0 ? (
+                        <>{s.existing_count}/{s.episode_count} episodes</>
+                      ) : (
+                        <>{s.episode_count} episodes</>
+                      )}
+                    </span>
+                    {s.complete && <span className="badge green">Complete</span>}
+                    {s.existing_count > 0 && !s.complete && (
+                      <span className="badge orange">Partial ({s.episode_count - s.existing_count} missing)</span>
+                    )}
+                  </div>
+                  {!s.complete && (
+                    <button
+                      className={`btn btn-sm ${styles.torrentBtn}`}
+                      onClick={() => setTorrentQuery(s.torrent_query)}
+                    >
+                      <Plus size={12} /> Find Torrent
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DiscoverPage() {
   const [activeTab, setActiveTab] = useState<'mood' | 'similar' | 'library' | 'trending'>('mood')
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
@@ -185,6 +269,8 @@ export default function DiscoverPage() {
   const [trendingFilterType, setTrendingFilterType] = useState<'all' | 'movie' | 'series'>('all')
   const [loading, setLoading] = useState(false)
   const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
+  const [torrentCategory, setTorrentCategory] = useState<string>('')
+  const [seriesModal, setSeriesModal] = useState<Recommendation | null>(null)
 
   // Global search state
   const [globalQuery, setGlobalQuery] = useState('')
@@ -325,8 +411,18 @@ export default function DiscoverPage() {
     }
   }, [])
 
-  function handleAddTorrent(query: string) {
-    setTorrentQuery(query)
+  function handleAddTorrent(rec: Recommendation) {
+    if (rec.type === 'series' || rec.type === 'tv') {
+      if (rec.tmdb_id) {
+        setSeriesModal(rec)
+      } else {
+        setTorrentCategory('tv')
+        setTorrentQuery(rec.torrent_query)
+      }
+    } else {
+      setTorrentCategory('movies')
+      setTorrentQuery(rec.torrent_query)
+    }
   }
 
   return (
@@ -651,7 +747,12 @@ export default function DiscoverPage() {
 
       {/* Torrent search modal */}
       {torrentQuery && (
-        <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} />
+        <TorrentSearchModal query={torrentQuery} onClose={() => { setTorrentQuery(null); setTorrentCategory('') }} category={torrentCategory} />
+      )}
+
+      {/* Series season modal */}
+      {seriesModal && (
+        <SeriesSeasonModal rec={seriesModal} onClose={() => setSeriesModal(null)} />
       )}
     </>
   )

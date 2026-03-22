@@ -528,3 +528,90 @@ def get_detail(tmdb_id: str = "", type: str = "movie"):
 
     _detail_cache[cache_key] = {"data": result, "ts": now}
     return result
+
+
+@router.get("/series-seasons")
+def get_series_seasons(tmdb_id: str = "", title: str = ""):
+    """Get season breakdown for a series: TMDB seasons + what's in Jellyfin."""
+    if not tmdb_id:
+        return {"error": "Missing tmdb_id"}
+
+    # Get season info from TMDB
+    tmdb_data = tmdb_svc.fetch(f"/tv/{tmdb_id}")
+    if not tmdb_data or "id" not in tmdb_data:
+        return {"error": "Series not found on TMDB"}
+
+    series_title = tmdb_data.get("name") or title or ""
+    tmdb_seasons = []
+    for s in tmdb_data.get("seasons", []):
+        sn = s.get("season_number", 0)
+        if sn == 0:
+            continue  # Skip specials
+        tmdb_seasons.append({
+            "season_number": sn,
+            "name": s.get("name", f"Season {sn}"),
+            "episode_count": s.get("episode_count", 0),
+            "air_date": s.get("air_date", ""),
+            "poster": f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else "",
+        })
+
+    # Check Jellyfin for existing seasons/episodes
+    jellyfin_seasons = {}  # {season_number: [episode_numbers]}
+    try:
+        users_data = jellyfin_svc.request("/Users")
+        user_id = ""
+        if isinstance(users_data, list) and users_data:
+            user_id = users_data[0].get("Id", "")
+
+        if user_id:
+            # Find the series in Jellyfin by name
+            search = jellyfin_svc.request(
+                f"/Users/{user_id}/Items?IncludeItemTypes=Series&Recursive=true"
+                f"&SearchTerm={urllib.parse.quote(series_title)}"
+            )
+            jf_series_id = None
+            if isinstance(search, dict) and search.get("Items"):
+                for item in search["Items"]:
+                    providers = item.get("ProviderIds", {})
+                    if providers.get("Tmdb") == str(tmdb_id) or item.get("Name", "").lower() == series_title.lower():
+                        jf_series_id = item["Id"]
+                        break
+
+            if jf_series_id:
+                # Get all episodes for this series
+                episodes = jellyfin_svc.request(
+                    f"/Shows/{jf_series_id}/Episodes?userId={user_id}"
+                    f"&Fields=IndexNumber,ParentIndexNumber"
+                )
+                if isinstance(episodes, dict) and episodes.get("Items"):
+                    for ep in episodes["Items"]:
+                        sn = ep.get("ParentIndexNumber", 0)
+                        en = ep.get("IndexNumber", 0)
+                        if sn and en:
+                            jellyfin_seasons.setdefault(sn, []).append(en)
+    except Exception:
+        pass
+
+    # Build result with per-season status
+    seasons = []
+    for ts in tmdb_seasons:
+        sn = ts["season_number"]
+        existing_eps = sorted(jellyfin_seasons.get(sn, []))
+        total_eps = ts["episode_count"]
+        has_all = len(existing_eps) >= total_eps and total_eps > 0
+        sn_padded = f"S{sn:02d}"
+
+        seasons.append({
+            **ts,
+            "existing_episodes": existing_eps,
+            "existing_count": len(existing_eps),
+            "complete": has_all,
+            "torrent_query": f"{series_title} {sn_padded} complete",
+        })
+
+    return {
+        "title": series_title,
+        "tmdb_id": str(tmdb_id),
+        "total_seasons": len(tmdb_seasons),
+        "seasons": seasons,
+    }
