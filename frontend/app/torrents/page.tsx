@@ -161,16 +161,22 @@ export default function TorrentsPage() {
   }
 
   async function clearAllCompleted() {
-    // Optimistic: hide all completed immediately
-    const hashes = completed.map(t => t.hash)
+    const items = [...completed]
+    if (!items.length) return
+    // Optimistic: hide all immediately
+    const hashes = items.map(t => t.hash)
     setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.add(h)); return s })
-    const r = await api('/api/actions/clean-torrents', { method: 'POST' })
+    // Batch delete via qBit API (all hashes in one call)
+    const r = await api(`/api/qbit/torrents/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${hashes.join('|')}&deleteFiles=false`,
+    })
     if (r.error) {
-      // Restore all on failure
       setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.delete(h)); return s })
       toast(r.error, 'error')
     } else {
-      toast(r.data?.message || `Cleared ${hashes.length} torrents`, 'success')
+      toast(`Cleared ${items.length} completed`, 'success')
     }
   }
 
