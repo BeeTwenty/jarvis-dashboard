@@ -48,10 +48,51 @@
   &:hover { background: rgba($green, 0.18) !important; box-shadow: 0 2px 8px rgba($green, 0.15) !important; }
 }
 
-.clearBtn {
+.clearAllBtn {
   background: rgba($orange, 0.1) !important;
   color: $orange !important;
   &:hover { background: rgba($orange, 0.18) !important; }
+}
+
+.sectionDivider {
+  height: 1px;
+  background: var(--subtle-border);
+  margin: $space-lg 0;
+}
+
+.completedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $space-sm;
+}
+
+.completedLabel {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+  font-size: $text-sm;
+  font-weight: 500;
+  color: $green;
+}
+
+.torrentCompleted {
+  border-color: rgba($green, 0.2) !important;
+  background: rgba($green, 0.03) !important;
+
+  .torrentTop { gap: $space-sm; }
+}
+
+.completedIcon {
+  color: $green;
+  flex-shrink: 0;
+}
+
+.cleanBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  flex-shrink: 0;
+  &:hover { background: rgba($green, 0.18) !important; }
 }
 
 .list {

@@ -4,13 +4,23 @@ import { useState, memo } from 'react'
 import { useData } from '@/lib/DataContext'
 import { api, fmtBytes, fmtSpeed, fmtETA } from '@/lib/api'
 import { toast } from '@/lib/toast'
-import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock, Trash2, CheckCircle } from 'lucide-react'
+import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock, Trash2, CheckCircle, XCircle } from 'lucide-react'
 import styles from './page.module.scss'
 
-const TorrentItem = memo(function TorrentItem({ t, onToggle, onRemove }: { t: any; onToggle: (hash: string, paused: boolean) => void; onRemove: (hash: string, name: string) => void }) {
+function isCompleted(t: any): boolean {
+  return Math.round((t.progress || 0) * 100) >= 100
+}
+
+const TorrentItem = memo(function TorrentItem({ t, onToggle, onRemove, onClean }: {
+  t: any
+  onToggle: (hash: string, paused: boolean) => void
+  onRemove: (hash: string, name: string) => void
+  onClean: (hash: string, name: string) => void
+}) {
   const pct = Math.round((t.progress || 0) * 100)
   const cat = t.category || ''
   const isPaused = t.state?.startsWith('paused') || t.state?.startsWith('stopped')
+  const completed = pct >= 100
 
   function getCatClass(c: string) {
     const lc = c.toLowerCase()
@@ -26,6 +36,22 @@ const TorrentItem = memo(function TorrentItem({ t, onToggle, onRemove }: { t: an
     if (state?.includes('UP') || state === 'uploading' || state === 'seeding') return 'blue'
     if (state === 'error') return 'red'
     return 'gray'
+  }
+
+  if (completed) {
+    return (
+      <div className={`${styles.torrent} ${styles.torrentCompleted}`}>
+        <div className={styles.torrentTop}>
+          <CheckCircle size={14} className={styles.completedIcon} />
+          <span className={styles.torrentName} title={t.name}>{t.name || '?'}</span>
+          {cat && <span className={`badge ${getCatClass(cat)}`}>{cat}</span>}
+          <span className={styles.torrentMeta}>{fmtBytes(t.size)}</span>
+          <button className={`btn btn-sm ${styles.cleanBtn}`} onClick={() => onClean(t.hash, t.name)}>
+            <XCircle size={12} /> Clean
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -63,12 +89,14 @@ export default function TorrentsPage() {
   const [removeTarget, setRemoveTarget] = useState<{ hash: string; name: string } | null>(null)
   const [deleteFiles, setDeleteFiles] = useState(false)
 
-  const sorted = Array.isArray(torrents)
-    ? [...torrents].sort((a, b) => {
-        const order: Record<string, number> = { downloading: 0, stalledDL: 1, forcedDL: 0, uploading: 2, stalledUP: 3, pausedDL: 4, pausedUP: 5 }
-        return (order[a.state] ?? 6) - (order[b.state] ?? 6) || a.progress - b.progress
-      })
-    : []
+  const allTorrents = Array.isArray(torrents) ? torrents : []
+  const active = allTorrents
+    .filter(t => !isCompleted(t))
+    .sort((a, b) => {
+      const order: Record<string, number> = { downloading: 0, stalledDL: 1, forcedDL: 0, uploading: 2, stalledUP: 3, pausedDL: 4, stoppedDL: 4 }
+      return (order[a.state] ?? 6) - (order[b.state] ?? 6) || a.progress - b.progress
+    })
+  const completed = allTorrents.filter(t => isCompleted(t))
 
   async function doSearch() {
     if (!query.trim()) return
@@ -85,7 +113,6 @@ export default function TorrentsPage() {
 
   async function addTorrent(hash: string, name: string) {
     const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(name)}`
-    // Auto-detect series by name pattern (S01, Season, etc.) and set category
     const isSeries = /\bS\d{1,2}|season\s*\d/i.test(name)
     const category = isSeries ? 'tv' : 'movies'
     const r = await api('/api/torrent-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ magnet, category }) })
@@ -117,22 +144,30 @@ export default function TorrentsPage() {
     setTimeout(refreshFast, 800)
   }
 
-  async function clearCompleted() {
+  async function cleanOne(hash: string, name: string) {
+    await api(`/api/qbit/torrents/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${hash}&deleteFiles=false`,
+    })
+    toast(`Cleaned: ${name.substring(0, 50)}`, 'success')
+    setTimeout(refreshFast, 500)
+  }
+
+  async function clearAllCompleted() {
     const r = await api('/api/actions/clean-torrents', { method: 'POST' })
     toast(r.data?.message || r.error || 'Done', r.error ? 'error' : 'success')
     setTimeout(refreshFast, 800)
   }
-
-  const completedCount = sorted.filter(t => Math.round((t.progress || 0) * 100) >= 100).length
 
   return (
     <>
       <header className="page-header">
         <h1 className="page-title">Torrents</h1>
         <div className="page-meta">
-          {completedCount > 0 && (
-            <button className={`btn btn-sm ${styles.clearBtn}`} onClick={clearCompleted}>
-              <CheckCircle size={12} /> Clear {completedCount} completed
+          {completed.length > 0 && (
+            <button className={`btn btn-sm ${styles.clearAllBtn}`} onClick={clearAllCompleted}>
+              <CheckCircle size={12} /> Clear {completed.length} completed
             </button>
           )}
           {transfer && (
@@ -181,15 +216,38 @@ export default function TorrentsPage() {
           )}
         </div>
 
+        {/* Active downloads */}
         <div className="section">
-          {sorted.length === 0 ? <div className="empty-state">No active torrents</div> : (
-            <div className={`${styles.list} stagger-children`}>
-              {sorted.map(t => <TorrentItem key={t.hash} t={t} onToggle={toggleTorrent} onRemove={promptRemove} />)}
-            </div>
+          {active.length === 0 && completed.length === 0 ? (
+            <div className="empty-state">No active torrents</div>
+          ) : (
+            <>
+              {active.length > 0 && (
+                <div className={`${styles.list} stagger-children`}>
+                  {active.map(t => <TorrentItem key={t.hash} t={t} onToggle={toggleTorrent} onRemove={promptRemove} onClean={cleanOne} />)}
+                </div>
+              )}
+
+              {/* Completed */}
+              {completed.length > 0 && (
+                <>
+                  {active.length > 0 && <div className={styles.sectionDivider} />}
+                  <div className={styles.completedHeader}>
+                    <span className={styles.completedLabel}>
+                      <CheckCircle size={14} /> {completed.length} completed
+                    </span>
+                  </div>
+                  <div className={`${styles.list}`}>
+                    {completed.map(t => <TorrentItem key={t.hash} t={t} onToggle={toggleTorrent} onRemove={promptRemove} onClean={cleanOne} />)}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       </div>
 
+      {/* Remove confirmation modal */}
       {removeTarget && (
         <div className={styles.modalOverlay} onClick={() => setRemoveTarget(null)}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
