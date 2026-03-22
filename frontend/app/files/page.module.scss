@@ -39,6 +39,10 @@
   transition: background $duration-fast, padding-left $duration-normal $ease-smooth;
 
   &:hover:not(.rowHeader) { background: rgba($blue, 0.03); padding-left: 24px; }
+
+  @include mobile {
+    padding: $space-sm $space-md;
+  }
 }
 
 .rowHeader {
@@ -65,9 +69,14 @@
 
 .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
 .nameDir { color: $blue; font-weight: 500; }
-.size { width: 70px; text-align: right; font-family: $font-mono; font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; }
+.size { width: 70px; text-align: right; font-family: $font-mono; font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; white-space: nowrap; }
 .modified { width: 100px; text-align: right; font-family: $font-mono; font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; @include mobile { display: none; } }
 .perms { width: 80px; font-family: $font-mono; font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; @include mobile { display: none; } }
+
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 // Context menu
 .ctxOverlay { position: fixed; inset: 0; z-index: 259; }

@@ -5,6 +5,7 @@
   grid-template-columns: repeat(4, 1fr);
   gap: $space-lg;
   @include tablet { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: $bp-mobile) { grid-template-columns: 1fr; gap: $space-md; }
 }
 
 .netCard {
@@ -16,6 +17,8 @@
   padding: $space-xl;
   gap: $space-md;
   transition: border-color $duration-normal, box-shadow $duration-normal;
+  max-width: 100%;
+  overflow: hidden;
   &:hover { border-color: var(--card-hover-border); box-shadow: var(--glass-shadow-lg); }
 }
 
@@ -61,6 +64,10 @@
   animation: fadeIn $duration-normal $ease-smooth both;
 
   &:hover:not(.procHeader) { background: var(--row-hover); }
+
+  @include mobile {
+    padding: $space-sm $space-md;
+  }
 }
 
 .procHeader {
