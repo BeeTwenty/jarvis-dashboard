@@ -101,6 +101,14 @@ def search_torrents(query: str) -> dict | list:
         return {"error": str(e)}
 
 
+_CATEGORY_PATHS = {
+    "tv": "/media/tv",
+    "movies": "/media/movies",
+    "anime": "/media/anime",
+    "music": "/media/music",
+}
+
+
 def add_torrent(magnet: str, category: str = "") -> dict:
     if not magnet.startswith("magnet:"):
         return {"error": "Invalid magnet link"}
@@ -114,7 +122,12 @@ def add_torrent(magnet: str, category: str = "") -> dict:
                 category = "tv"
             else:
                 category = "movies"
-    post_data = urllib.parse.urlencode({"urls": magnet, "category": category})
+    # Explicitly set save path based on category (qBit doesn't always respect category savePath)
+    save_path = _CATEGORY_PATHS.get(category, "")
+    params = {"urls": magnet, "category": category}
+    if save_path:
+        params["savepath"] = save_path
+    post_data = urllib.parse.urlencode(params)
     return request("/torrents/add", method="POST", body=post_data)
 
 
