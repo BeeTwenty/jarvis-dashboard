@@ -186,7 +186,7 @@ def get_library():
         if isinstance(users_data, list) and users_data:
             user_id = users_data[0].get("Id", "")
         if user_id:
-            movies = jellyfin_svc.request(f"/Users/{user_id}/Items?IncludeItemTypes=Movie&Limit=50&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
+            movies = jellyfin_svc.request(f"/Users/{user_id}/Items?IncludeItemTypes=Movie&Limit=50&SortBy=DatePlayed&SortOrder=Descending&Recursive=true&Fields=ProductionYear,ProviderIds,Genres")
             if isinstance(movies, dict) and "Items" in movies:
                 for item in movies["Items"]:
                     name = item.get("Name", "")
@@ -194,8 +194,14 @@ def get_library():
                     item_genres = item.get("Genres", [])
                     for g in item_genres:
                         genres.append(g)
-                    library_items_raw.append({"title": name, "type": "movie", "genres": item_genres})
-            series = jellyfin_svc.request(f"/Users/{user_id}/Items?IncludeItemTypes=Series&Limit=30&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
+                    providers = item.get("ProviderIds", {})
+                    library_items_raw.append({
+                        "title": name, "type": "movie", "genres": item_genres,
+                        "year": str(item.get("ProductionYear", "")),
+                        "tmdb_id": providers.get("Tmdb", ""),
+                        "imdb_id": providers.get("Imdb", ""),
+                    })
+            series = jellyfin_svc.request(f"/Users/{user_id}/Items?IncludeItemTypes=Series&Limit=30&SortBy=DatePlayed&SortOrder=Descending&Recursive=true&Fields=ProductionYear,ProviderIds,Genres")
             if isinstance(series, dict) and "Items" in series:
                 for item in series["Items"]:
                     name = item.get("Name", "")
@@ -203,7 +209,13 @@ def get_library():
                     item_genres = item.get("Genres", [])
                     for g in item_genres:
                         genres.append(g)
-                    library_items_raw.append({"title": name, "type": "series", "genres": item_genres})
+                    providers = item.get("ProviderIds", {})
+                    library_items_raw.append({
+                        "title": name, "type": "series", "genres": item_genres,
+                        "year": str(item.get("ProductionYear", "")),
+                        "tmdb_id": providers.get("Tmdb", ""),
+                        "imdb_id": providers.get("Imdb", ""),
+                    })
     except Exception:
         pass
 
@@ -216,25 +228,49 @@ def get_library():
     top_genres = sorted(genre_count.keys(), key=lambda g: genre_count[g], reverse=True)[:5]
 
     def _enrich_library_item(item):
-        import urllib.parse as up
         kind = "tv" if item["type"] == "series" else "movie"
-        search = tmdb_svc.fetch(f"/search/{kind}?query={up.quote(item['title'])}")
+        tmdb_id = item.get("tmdb_id", "")
+        year = item.get("year", "")
+
+        # Use TMDB ID from Jellyfin directly (most accurate)
+        if tmdb_id:
+            data = tmdb_svc.fetch(f"/{kind}/{tmdb_id}")
+            if data and data.get("id"):
+                poster = f"https://image.tmdb.org/t/p/w300{data['poster_path']}" if data.get("poster_path") else ""
+                return {
+                    "title": item["title"], "year": year or (data.get("release_date") or data.get("first_air_date") or "")[:4],
+                    "type": item["type"], "poster": poster,
+                    "tmdb_id": str(tmdb_id),
+                    "rating": str(round(data.get("vote_average", 0), 1)),
+                    "description": (data.get("overview") or "")[:150],
+                    "genres": item["genres"],
+                    "torrent_query": f"{item['title']} {year}".strip(),
+                }
+
+        # Fallback: search TMDB by title + year
+        import urllib.parse as up
+        query = f"{item['title']}"
+        if year:
+            query_param = f"/search/{kind}?query={up.quote(item['title'])}&year={year}"
+        else:
+            query_param = f"/search/{kind}?query={up.quote(item['title'])}"
+        search = tmdb_svc.fetch(query_param)
         if search.get("results"):
             first = search["results"][0]
             poster = f"https://image.tmdb.org/t/p/w300{first['poster_path']}" if first.get("poster_path") else ""
-            year = (first.get("release_date") or first.get("first_air_date") or "")[:4]
+            found_year = year or (first.get("release_date") or first.get("first_air_date") or "")[:4]
             return {
-                "title": item["title"], "year": year, "type": item["type"],
+                "title": item["title"], "year": found_year, "type": item["type"],
                 "poster": poster, "tmdb_id": str(first.get("id", "")),
                 "rating": str(round(first.get("vote_average", 0), 1)),
                 "description": (first.get("overview") or "")[:150],
                 "genres": item["genres"],
-                "torrent_query": f"{item['title']} {year}".strip(),
+                "torrent_query": f"{item['title']} {found_year}".strip(),
             }
         return {
-            "title": item["title"], "year": "", "type": item["type"],
-            "poster": "", "tmdb_id": "", "rating": "", "description": "",
-            "genres": item["genres"], "torrent_query": item["title"],
+            "title": item["title"], "year": year, "type": item["type"],
+            "poster": "", "tmdb_id": tmdb_id, "rating": "", "description": "",
+            "genres": item["genres"], "torrent_query": f"{item['title']} {year}".strip(),
         }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
@@ -245,6 +281,27 @@ def get_library():
     seen = set(library_titles)
 
     def _get_recs(item):
+        # Use Jellyfin's TMDB ID directly if available
+        tmdb_id = item.get("tmdb_id", "")
+        if tmdb_id:
+            kind = "tv" if item["type"] == "series" else "movie"
+            recs = tmdb_svc.fetch(f"/{kind}/{tmdb_id}/recommendations")
+            results = []
+            for s in recs.get("results", [])[:10]:
+                s_title = s.get("title") or s.get("name", "")
+                year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
+                poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+                s_type = "series" if kind == "tv" else "movie"
+                results.append({
+                    "title": s_title, "year": year, "type": s_type,
+                    "description": (s.get("overview") or "")[:200],
+                    "rating": str(round(s.get("vote_average", 0), 1)),
+                    "poster": poster,
+                    "tmdb_id": str(s.get("id", "")),
+                    "torrent_query": f"{s_title} {year}".strip(),
+                    "genre_ids": s.get("genre_ids", []),
+                })
+            return results
         return tmdb_svc.get_recommendations_for_item(item["title"], item["type"])
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
