@@ -115,6 +115,24 @@ def get_mood(mood: str = ""):
     random.shuffle(all_movies)
     results = all_movies[:20]
 
+    # If wiki KB didn't have enough results, use TMDB discover as fallback
+    if len(results) < 10:
+        seen_titles = {m["title"].lower() for m in results}
+        # Map mood keywords to TMDB genre IDs
+        tmdb_ids = []
+        for kw in cat_keywords:
+            kw_l = kw.lower()
+            if kw_l in _TMDB_GENRE_MAP:
+                tmdb_ids.append(_TMDB_GENRE_MAP[kw_l])
+        if tmdb_ids:
+            discover = tmdb_svc.discover_by_genres(tmdb_ids[:2], "movie")
+            for d in discover:
+                if d["title"].lower() not in seen_titles:
+                    seen_titles.add(d["title"].lower())
+                    results.append(d)
+                if len(results) >= 20:
+                    break
+
     if not results:
         results = _google_search_titles(f"{mood} movies recommendations reddit")[:20]
 
