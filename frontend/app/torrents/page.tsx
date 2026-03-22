@@ -88,8 +88,9 @@ export default function TorrentsPage() {
   const [searching, setSearching] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<{ hash: string; name: string } | null>(null)
   const [deleteFiles, setDeleteFiles] = useState(false)
+  const [hiddenHashes, setHiddenHashes] = useState<Set<string>>(new Set())
 
-  const allTorrents = Array.isArray(torrents) ? torrents : []
+  const allTorrents = (Array.isArray(torrents) ? torrents : []).filter(t => !hiddenHashes.has(t.hash))
   const active = allTorrents
     .filter(t => !isCompleted(t))
     .sort((a, b) => {
@@ -145,19 +146,32 @@ export default function TorrentsPage() {
   }
 
   async function cleanOne(hash: string, name: string) {
-    await api(`/api/qbit/torrents/delete`, {
+    // Optimistic: hide immediately
+    setHiddenHashes(prev => new Set(prev).add(hash))
+    const r = await api(`/api/qbit/torrents/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `hashes=${hash}&deleteFiles=false`,
     })
-    toast(`Cleaned: ${name.substring(0, 50)}`, 'success')
-    setTimeout(refreshFast, 500)
+    if (r.error) {
+      // Restore on failure
+      setHiddenHashes(prev => { const s = new Set(prev); s.delete(hash); return s })
+      toast(`Failed to clean: ${name.substring(0, 40)}`, 'error')
+    }
   }
 
   async function clearAllCompleted() {
+    // Optimistic: hide all completed immediately
+    const hashes = completed.map(t => t.hash)
+    setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.add(h)); return s })
     const r = await api('/api/actions/clean-torrents', { method: 'POST' })
-    toast(r.data?.message || r.error || 'Done', r.error ? 'error' : 'success')
-    setTimeout(refreshFast, 800)
+    if (r.error) {
+      // Restore all on failure
+      setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.delete(h)); return s })
+      toast(r.error, 'error')
+    } else {
+      toast(r.data?.message || `Cleared ${hashes.length} torrents`, 'success')
+    }
   }
 
   return (
