@@ -159,6 +159,13 @@
   margin-bottom: $space-2xl;
 }
 
+// Mood top bar (Movies/Shows toggle)
+.moodTopBar {
+  display: flex;
+  align-items: center;
+  margin-bottom: $space-lg;
+}
+
 // Mood grid
 .moodGrid {
   display: grid;

@@ -255,6 +255,7 @@ function SeriesSeasonModal({ rec, onClose }: { rec: Recommendation; onClose: () 
 export default function DiscoverPage() {
   const [activeTab, setActiveTab] = useState<'mood' | 'similar' | 'library' | 'trending'>('mood')
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
+  const [moodMediaType, setMoodMediaType] = useState<'movie' | 'tv'>('movie')
   const [moodResults, setMoodResults] = useState<Recommendation[]>([])
   const [similarQuery, setSimilarQuery] = useState('')
   const [similarResults, setSimilarResults] = useState<Recommendation[]>([])
@@ -362,10 +363,10 @@ export default function DiscoverPage() {
       })
   }
 
-  async function loadMood(mood: string) {
+  async function loadMood(mood: string, mt: 'movie' | 'tv' = moodMediaType) {
     setSelectedMood(mood)
     setLoading(true)
-    const r = await api<{ mood: string; results: Recommendation[] }>(`/api/recommendations/mood?mood=${encodeURIComponent(mood)}`)
+    const r = await api<{ mood: string; results: Recommendation[] }>(`/api/recommendations/mood?mood=${encodeURIComponent(mood)}&media_type=${mt}`)
     setLoading(false)
     if (r.data && r.data.results) {
       setMoodResults(r.data.results)
@@ -512,6 +513,22 @@ export default function DiscoverPage() {
         {/* Mood-based picker */}
         {activeTab === 'mood' && (
           <div className="section">
+            <div className={styles.moodTopBar}>
+              <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+                {(['movie', 'tv'] as const).map(mt => (
+                  <button
+                    key={mt}
+                    className={`segment-btn ${moodMediaType === mt ? 'active' : ''}`}
+                    onClick={() => {
+                      setMoodMediaType(mt)
+                      if (selectedMood) loadMood(selectedMood, mt)
+                    }}
+                  >
+                    {mt === 'movie' ? <><Film size={12} /> Movies</> : <><Tv size={12} /> Shows</>}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className={styles.moodGrid}>
               {MOODS.map(mood => (
                 <button

@@ -81,17 +81,72 @@ def _google_search_titles(query: str, num: int = 10) -> list:
 
 
 @router.get("/mood")
-def get_mood(mood: str = ""):
+def get_mood(mood: str = "", media_type: str = "movie"):
     if not mood:
         return {"error": "Missing mood parameter"}
-    cache_key = f"mood:{mood}"
+    if media_type not in ("movie", "tv"):
+        media_type = "movie"
+
+    cache_key = f"mood:{mood}:{media_type}"
     now = time.time()
     if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
         return _cache[cache_key]["data"]
 
-    categories, _ = wiki_svc.get_kb()
     mood_lower = mood.lower().strip()
     cat_keywords = MOOD_CATEGORY_MAP.get(mood_lower, [mood_lower])
+
+    if media_type == "tv":
+        # For TV shows, use TMDB discover directly (wiki KB is movie-only)
+        # TV has different genre IDs — map movie genre keywords to TV genre IDs
+        _TV_GENRE_MAP = {
+            "action": 10759, "adventure": 10759, "animation": 16, "comedy": 35,
+            "crime": 80, "documentary": 99, "drama": 18, "family": 10751,
+            "fantasy": 10765, "mystery": 9648, "science fiction": 10765,
+            "sci-fi": 10765, "war": 10768, "western": 37,
+            # Moods that map to TV genres
+            "thriller": 80,      # Crime is closest to thriller on TV
+            "horror": 9648,      # Mystery is closest to horror on TV
+            "romance": 18,       # Drama covers romance on TV
+            "suspense": 9648, "psychological thriller": 9648, "crime thriller": 80,
+            "noir": 80, "dark comedy": 35, "psychological": 9648,
+            "feel-good": 35, "comfort": 10751, "musical": 18,
+            "history": 18, "biography": 99, "true crime": 80,
+            "parody": 35, "satire": 35, "slapstick": 35,
+            "romantic comedy": 35, "rom-com": 35,
+            "military": 10768, "martial arts": 10759, "heist": 80, "spy": 10759,
+            "cyberpunk": 10765, "space": 10765, "dystopia": 10765, "time travel": 10765,
+            "slasher": 9648, "supernatural": 10765, "zombie": 10759, "gothic": 18,
+            "animated": 16, "anime": 16, "pixar": 16, "disney": 16,
+        }
+        tv_ids = []
+        for kw in cat_keywords:
+            kw_l = kw.lower()
+            if kw_l in _TV_GENRE_MAP:
+                gid = _TV_GENRE_MAP[kw_l]
+                if gid not in tv_ids:
+                    tv_ids.append(gid)
+        results = []
+        if tv_ids:
+            results = tmdb_svc.discover_by_genres(tv_ids[:3], "tv")
+        # If still not enough, try broader genres
+        if len(results) < 10:
+            fallback_ids = [18, 80, 9648]  # Drama, Crime, Mystery
+            more = tmdb_svc.discover_by_genres(fallback_ids[:2], "tv")
+            seen = {r["title"].lower() for r in results}
+            for r in more:
+                if r["title"].lower() not in seen:
+                    seen.add(r["title"].lower())
+                    results.append(r)
+        results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
+        results = results[:20]
+        for r in results:
+            r["torrent_query"] = f"{r['title']} S01 complete"
+        result = {"mood": mood, "media_type": media_type, "results": results}
+        _cache[cache_key] = {"data": result, "ts": now}
+        return result
+
+    # Movie path: wiki KB + TMDB discover fallback
+    categories, _ = wiki_svc.get_kb()
     matched_cats = _match_categories(cat_keywords, categories)
 
     if not matched_cats:
@@ -115,10 +170,8 @@ def get_mood(mood: str = ""):
     random.shuffle(all_movies)
     results = all_movies[:20]
 
-    # If wiki KB didn't have enough results, use TMDB discover as fallback
     if len(results) < 10:
         seen_titles = {m["title"].lower() for m in results}
-        # Map mood keywords to TMDB genre IDs
         tmdb_ids = []
         for kw in cat_keywords:
             kw_l = kw.lower()
@@ -137,16 +190,9 @@ def get_mood(mood: str = ""):
         results = _google_search_titles(f"{mood} movies recommendations reddit")[:20]
 
     results = tmdb_svc.enrich_with_posters(results, max_items=20)
-
-    # Sort by rating
     results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
 
-    # Better torrent queries for series
-    for r in results:
-        if r.get("type") in ("series", "tv"):
-            r["torrent_query"] = f"{r['title']} S01 complete"
-
-    result = {"mood": mood, "matched_categories": matched_cats, "results": results}
+    result = {"mood": mood, "media_type": media_type, "matched_categories": matched_cats, "results": results}
     _cache[cache_key] = {"data": result, "ts": now}
     return result
 

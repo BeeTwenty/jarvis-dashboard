@@ -9,3 +9,5 @@ docs/reddit-posts.md
 docs/generate_pdf.py
 *.egg-info/
 .pytest_cache/
+docs/screenshots/debug-subtitles.js
+docs/screenshots/fix-subtitles.js
