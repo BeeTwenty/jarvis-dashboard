@@ -46,7 +46,8 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [showLeft, setShowLeft] = useState(false)
   const [showRight, setShowRight] = useState(false)
-  const isDragging = useRef(false)
+  const isPointerDown = useRef(false)
+  const hasDragged = useRef(false)
   const startX = useRef(0)
   const scrollStart = useRef(0)
 
@@ -67,27 +68,46 @@ function ScrollRow({ children }: { children: React.ReactNode }) {
     return () => { el.removeEventListener('scroll', checkArrows); ro.disconnect() }
   }, [checkArrows])
 
+  // Block clicks on child links when a real drag happened
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    function blockClick(e: MouseEvent) {
+      if (hasDragged.current) {
+        e.preventDefault()
+        e.stopPropagation()
+        hasDragged.current = false
+      }
+    }
+    el.addEventListener('click', blockClick, true)
+    return () => el.removeEventListener('click', blockClick, true)
+  }, [])
+
   function scroll(dir: number) {
     ref.current?.scrollBy({ left: dir * 400, behavior: 'smooth' })
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    isDragging.current = true
+    isPointerDown.current = true
+    hasDragged.current = false
     startX.current = e.clientX
     scrollStart.current = ref.current?.scrollLeft || 0
-    ref.current?.setPointerCapture(e.pointerId)
-    if (ref.current) ref.current.style.cursor = 'grabbing'
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!isDragging.current) return
+    if (!isPointerDown.current) return
     const dx = e.clientX - startX.current
-    if (ref.current) ref.current.scrollLeft = scrollStart.current - dx
+    if (Math.abs(dx) > 5) {
+      hasDragged.current = true
+      if (ref.current) ref.current.style.cursor = 'grabbing'
+    }
+    if (hasDragged.current && ref.current) {
+      ref.current.scrollLeft = scrollStart.current - dx
+    }
   }
 
-  function onPointerUp(e: React.PointerEvent) {
-    isDragging.current = false
-    ref.current?.releasePointerCapture(e.pointerId)
+  function onPointerUp() {
+    isPointerDown.current = false
     if (ref.current) ref.current.style.cursor = ''
   }
 
