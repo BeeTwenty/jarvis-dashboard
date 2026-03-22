@@ -37,10 +37,16 @@ def _jellyfin_web_url(item_id: str) -> str:
 
 def _item_to_dict(item: dict, user_id: str = "") -> dict:
     """Convert a Jellyfin item to a standardized dict."""
-    poster_tag = item.get("ImageTags", {}).get("Primary", "")
     item_type = item.get("Type", "")
     providers = item.get("ProviderIds", {})
     runtime = item.get("RunTimeTicks", 0)
+
+    # For episodes, use the series poster instead of the episode still frame
+    if item_type == "Episode" and item.get("SeriesId") and item.get("SeriesPrimaryImageTag"):
+        poster = _poster_url(item["SeriesId"], item["SeriesPrimaryImageTag"])
+    else:
+        poster_tag = item.get("ImageTags", {}).get("Primary", "")
+        poster = _poster_url(item["Id"], poster_tag)
 
     result = {
         "id": item["Id"],
@@ -52,7 +58,7 @@ def _item_to_dict(item: dict, user_id: str = "") -> dict:
         "runtime_min": round(runtime / 600000000) if runtime else None,
         "genres": item.get("Genres", []),
         "overview": (item.get("Overview") or "")[:150],
-        "poster": _poster_url(item["Id"], poster_tag),
+        "poster": poster,
         "played": item.get("UserData", {}).get("Played", False),
         "favorite": item.get("UserData", {}).get("IsFavorite", False),
         "tmdb_id": providers.get("Tmdb", ""),
@@ -145,7 +151,7 @@ def media_overview():
     # Continue watching
     resume = jellyfin_svc.request(
         f"/Users/{user_id}/Items/Resume?Limit=10"
-        f"&Fields=Overview,RunTimeTicks,ImageTags,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds"
+        f"&Fields=Overview,RunTimeTicks,ImageTags,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds,SeriesId,SeriesPrimaryImageTag"
     )
     continue_watching = []
     if isinstance(resume, dict) and resume.get("Items"):
@@ -218,7 +224,7 @@ def media_overview():
     watched = jellyfin_svc.request(
         f"/Users/{user_id}/Items?IncludeItemTypes=Movie,Episode&Recursive=true&IsPlayed=true"
         f"&SortBy=DatePlayed&SortOrder=Descending&Limit=10"
-        f"&Fields=RunTimeTicks,DatePlayed,SeriesName,ImageTags,ProviderIds,ParentIndexNumber,IndexNumber"
+        f"&Fields=RunTimeTicks,DatePlayed,SeriesName,ImageTags,ProviderIds,ParentIndexNumber,IndexNumber,SeriesId,SeriesPrimaryImageTag"
     )
     watch_history = []
     if isinstance(watched, dict) and watched.get("Items"):
