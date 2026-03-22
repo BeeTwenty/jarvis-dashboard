@@ -20,6 +20,8 @@ interface Recommendation {
   poster: string
   torrent_query: string
   tmdb_id?: string
+  genre_ids?: number[]
+  genres?: string[]
 }
 
 interface AutocompleteResult {
@@ -63,27 +65,34 @@ function getDetailHref(rec: Recommendation): string | null {
 function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddTorrent: (query: string) => void }) {
   const href = getDetailHref(rec)
   const cardContent = (
-    <>
-      <div className={styles.recHeader}>
+    <div className={styles.recCardInner}>
+      {rec.poster ? (
+        <img src={rec.poster} alt={rec.title} className={styles.recPoster} loading="lazy" />
+      ) : (
+        <div className={styles.recPosterEmpty}><Film size={24} /></div>
+      )}
+      <div className={styles.recContent}>
         <span className={styles.recTitle}>{rec.title}</span>
         <div className={styles.recBadges}>
           {rec.year && <span className="badge gray">{rec.year}</span>}
           <span className={`badge ${rec.type === 'series' || rec.type === 'tv' ? 'purple' : 'blue'}`}>
             {rec.type === 'series' || rec.type === 'tv' ? <><Tv size={10} /> Series</> : <><Film size={10} /> Movie</>}
           </span>
+          {rec.rating && Number(rec.rating) > 0 && (
+            <span className={styles.recRatingBadge}>&#9733; {rec.rating}</span>
+          )}
+        </div>
+        {rec.description && <div className={styles.recDesc}>{rec.description}</div>}
+        <div className={styles.recActions}>
+          <button
+            className={`btn btn-sm ${styles.torrentBtn}`}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddTorrent(rec.torrent_query) }}
+          >
+            <Plus size={12} /> Find Torrent
+          </button>
         </div>
       </div>
-      {rec.description && <div className={styles.recDesc}>{rec.description}</div>}
-      {rec.rating && <div className={styles.recRating}>Rating: {rec.rating}</div>}
-      <div className={styles.recActions}>
-        <button
-          className={`btn btn-sm ${styles.torrentBtn}`}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddTorrent(rec.torrent_query) }}
-        >
-          <Plus size={12} /> Find Torrent
-        </button>
-      </div>
-    </>
+    </div>
   )
 
   if (href) {
@@ -165,9 +174,15 @@ export default function DiscoverPage() {
   const [moodResults, setMoodResults] = useState<Recommendation[]>([])
   const [similarQuery, setSimilarQuery] = useState('')
   const [similarResults, setSimilarResults] = useState<Recommendation[]>([])
-  const [libraryResults, setLibraryResults] = useState<Recommendation[]>([])
+  const [libraryItems, setLibraryItems] = useState<Recommendation[]>([])
+  const [librarySuggestions, setLibrarySuggestions] = useState<Recommendation[]>([])
   const [libraryGenres, setLibraryGenres] = useState<string[]>([])
+  const [libraryLoaded, setLibraryLoaded] = useState(false)
+  const [libraryFilterType, setLibraryFilterType] = useState<'all' | 'movie' | 'series'>('all')
+  const [libraryFilterGenre, setLibraryFilterGenre] = useState<string>('all')
   const [trendingResults, setTrendingResults] = useState<Recommendation[]>([])
+  const [trendingWindow, setTrendingWindow] = useState<'week' | 'day'>('week')
+  const [trendingFilterType, setTrendingFilterType] = useState<'all' | 'movie' | 'series'>('all')
   const [loading, setLoading] = useState(false)
   const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
 
@@ -184,9 +199,10 @@ export default function DiscoverPage() {
   const acTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const acWrapRef = useRef<HTMLDivElement>(null)
 
-  // Auto-load trending on mount
+  // Auto-load trending and library on mount
   useEffect(() => {
     loadTrending()
+    loadLibrary()
   }, [])
 
   // Close autocomplete / global search on click outside
@@ -288,20 +304,22 @@ export default function DiscoverPage() {
   }
 
   async function loadLibrary() {
-    setLoading(true)
-    const r = await api<{ genres: string[]; library_count: number; results: Recommendation[] }>('/api/recommendations/library')
-    setLoading(false)
-    if (r.data && r.data.results) {
-      setLibraryResults(r.data.results)
+    setLibraryLoaded(false)
+    const r = await api<{ genres: string[]; library_count: number; library_items: Recommendation[]; suggestions: Recommendation[] }>('/api/recommendations/library')
+    if (r.data) {
+      setLibraryItems(r.data.library_items || [])
+      setLibrarySuggestions(r.data.suggestions || [])
       setLibraryGenres(r.data.genres || [])
     } else {
-      setLibraryResults([])
-      toast(r.error || 'Could not analyze library', 'error')
+      setLibraryItems([])
+      setLibrarySuggestions([])
     }
+    setLibraryLoaded(true)
   }
 
-  const loadTrending = useCallback(async () => {
-    const r = await api<{ results: Recommendation[] }>('/api/recommendations/trending')
+  const loadTrending = useCallback(async (tw: 'week' | 'day' = 'week') => {
+    setTrendingResults([])
+    const r = await api<{ results: Recommendation[]; time_window: string }>(`/api/recommendations/trending?time_window=${tw}`)
     if (r.data && r.data.results) {
       setTrendingResults(r.data.results)
     }
@@ -492,30 +510,99 @@ export default function DiscoverPage() {
         {/* From Library */}
         {activeTab === 'library' && (
           <div className="section">
-            <div className={styles.libraryPrompt}>
-              <p className={styles.libraryDesc}>
-                Analyze your Jellyfin library to discover new movies and series based on what you already enjoy.
-              </p>
-              <button className="btn btn-primary" onClick={loadLibrary} disabled={loading}>
-                {loading ? <><Loader2 size={14} className={styles.spinner} /> Analyzing...</> : <><Library size={14} /> Analyze My Library</>}
-              </button>
-            </div>
-
-            {libraryGenres.length > 0 && (
-              <div className={styles.genreTags}>
-                <span className={styles.genreLabel}>Your top genres:</span>
-                {libraryGenres.map(g => (
-                  <span key={g} className="badge blue">{g}</span>
-                ))}
-              </div>
+            {!libraryLoaded && (
+              <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading your library...</div>
             )}
 
-            {!loading && libraryResults.length > 0 && (
-              <div className={`${styles.recGrid} stagger-children`}>
-                {libraryResults.map((rec, i) => (
-                  <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
-                ))}
-              </div>
+            {libraryLoaded && (
+              <>
+                {libraryGenres.length > 0 && (
+                  <div className={styles.genreTags}>
+                    <span className={styles.genreLabel}>Your top genres:</span>
+                    {libraryGenres.map(g => (
+                      <span key={g} className="badge blue">{g}</span>
+                    ))}
+                    <button className={`btn btn-sm ${styles.refreshBtn}`} onClick={loadLibrary} style={{ marginLeft: 'auto' }}>
+                      Refresh
+                    </button>
+                  </div>
+                )}
+
+                {/* Library items */}
+                {libraryItems.length > 0 && (
+                  <>
+                    <h3 className="section-title" style={{ marginTop: 16 }}>
+                      <Library size={16} style={{ marginRight: 6, verticalAlign: -3 }} />
+                      Your Library ({libraryItems.length})
+                    </h3>
+                    <div className={styles.libraryGrid}>
+                      {libraryItems.map((rec, i) => (
+                        <Link
+                          key={i}
+                          href={getDetailHref(rec) || '#'}
+                          className={styles.libraryCard}
+                          style={{ textDecoration: 'none', color: 'inherit' }}
+                        >
+                          {rec.poster ? (
+                            <img src={rec.poster} alt={rec.title} className={styles.libraryPoster} loading="lazy" />
+                          ) : (
+                            <div className={styles.libraryPosterEmpty}><Film size={20} /></div>
+                          )}
+                          <span className={styles.libraryTitle}>{rec.title}</span>
+                          <div className={styles.libraryMeta}>
+                            {rec.year && <span className="badge gray">{rec.year}</span>}
+                            <span className={`badge ${rec.type === 'series' ? 'purple' : 'blue'}`}>
+                              {rec.type === 'series' ? 'TV' : 'Movie'}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {/* Suggestions */}
+                {librarySuggestions.length > 0 && (
+                  <>
+                    <h3 className="section-title" style={{ marginTop: 32 }}>
+                      <Sparkles size={16} style={{ marginRight: 6, verticalAlign: -3 }} />
+                      Recommended For You
+                    </h3>
+                    <div className={styles.filterBar}>
+                      <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+                        {(['all', 'movie', 'series'] as const).map(t => (
+                          <button
+                            key={t}
+                            className={`segment-btn ${libraryFilterType === t ? 'active' : ''}`}
+                            onClick={() => setLibraryFilterType(t)}
+                          >
+                            {t === 'all' ? 'All' : t === 'movie' ? 'Movies' : 'Series'}
+                          </button>
+                        ))}
+                      </div>
+                      {libraryGenres.length > 0 && (
+                        <select
+                          className={`input ${styles.genreSelect}`}
+                          value={libraryFilterGenre}
+                          onChange={e => setLibraryFilterGenre(e.target.value)}
+                        >
+                          <option value="all">All Genres</option>
+                          {libraryGenres.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <div className={`${styles.recGrid} stagger-children`}>
+                      {librarySuggestions
+                        .filter(rec => libraryFilterType === 'all' || rec.type === libraryFilterType)
+                        .map((rec, i) => (
+                          <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                        ))}
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </div>
         )}
@@ -523,13 +610,39 @@ export default function DiscoverPage() {
         {/* Trending */}
         {activeTab === 'trending' && (
           <div className="section">
+            <div className={styles.filterBar}>
+              <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+                {(['week', 'day'] as const).map(tw => (
+                  <button
+                    key={tw}
+                    className={`segment-btn ${trendingWindow === tw ? 'active' : ''}`}
+                    onClick={() => { setTrendingWindow(tw); loadTrending(tw) }}
+                  >
+                    {tw === 'week' ? 'This Week' : 'Today'}
+                  </button>
+                ))}
+              </div>
+              <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+                {(['all', 'movie', 'series'] as const).map(t => (
+                  <button
+                    key={t}
+                    className={`segment-btn ${trendingFilterType === t ? 'active' : ''}`}
+                    onClick={() => setTrendingFilterType(t)}
+                  >
+                    {t === 'all' ? 'All' : t === 'movie' ? 'Movies' : 'Series'}
+                  </button>
+                ))}
+              </div>
+            </div>
             {trendingResults.length === 0 ? (
               <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading trending...</div>
             ) : (
               <div className={`${styles.recGrid} stagger-children`}>
-                {trendingResults.map((rec, i) => (
-                  <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
-                ))}
+                {trendingResults
+                  .filter(rec => trendingFilterType === 'all' || rec.type === trendingFilterType)
+                  .map((rec, i) => (
+                    <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                  ))}
               </div>
             )}
           </div>

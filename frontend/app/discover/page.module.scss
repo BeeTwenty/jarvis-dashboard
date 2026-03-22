@@ -307,6 +307,91 @@
   font-weight: 500;
 }
 
+// Library poster grid (compact cards)
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: $space-md;
+  margin-bottom: $space-lg;
+
+  @include mobile {
+    grid-template-columns: repeat(3, 1fr);
+    gap: $space-sm;
+  }
+}
+
+.libraryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform $duration-normal $ease-smooth;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+.libraryPoster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: $radius-sm;
+  background: var(--bg-tertiary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.libraryPosterEmpty {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.libraryTitle {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.libraryMeta {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+// Filter bar
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  margin-bottom: $space-lg;
+  flex-wrap: wrap;
+}
+
+.genreSelect {
+  padding: 6px 12px !important;
+  font-size: $text-sm !important;
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.refreshBtn {
+  background: rgba($blue, 0.1) !important;
+  color: var(--blue) !important;
+  &:hover {
+    background: rgba($blue, 0.18) !important;
+  }
+}
+
 // Recommendation grid
 .recGrid {
   display: grid;
@@ -321,10 +406,8 @@
 // Recommendation card
 .recCard {
   @include card;
-  padding: $space-xl;
-  display: flex;
-  flex-direction: column;
-  gap: $space-sm;
+  padding: 0;
+  overflow: hidden;
   transition: border-color $duration-normal, transform $duration-normal $ease-smooth;
 
   &:hover {
@@ -333,48 +416,86 @@
   }
 }
 
-.recHeader {
+.recCardInner {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $space-sm;
+  gap: 0;
+  height: 100%;
+}
+
+.recPoster {
+  width: 120px;
+  min-height: 180px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-tertiary);
+
+  @include mobile {
+    width: 90px;
+    min-height: 135px;
+  }
+}
+
+.recPosterEmpty {
+  width: 120px;
+  min-height: 180px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+
+  @include mobile {
+    width: 90px;
+    min-height: 135px;
+  }
+}
+
+.recContent {
+  flex: 1;
+  padding: $space-md;
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+  min-width: 0;
 }
 
 .recTitle {
   font-weight: 600;
   font-size: $text-base;
   color: var(--text-primary);
-  flex: 1;
   line-height: 1.3;
 }
 
 .recBadges {
   display: flex;
   gap: $space-xs;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.recRatingBadge {
+  font-size: $text-xs;
+  font-family: $font-mono;
+  color: var(--orange);
+  font-weight: 600;
 }
 
 .recDesc {
   font-size: $text-sm;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.recRating {
-  font-size: $text-xs;
-  font-family: $font-mono;
-  color: var(--orange);
+  flex: 1;
 }
 
 .recActions {
   display: flex;
   justify-content: flex-end;
   margin-top: auto;
-  padding-top: $space-sm;
+  padding-top: $space-xs;
 }
 
 .torrentBtn {

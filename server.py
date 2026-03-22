@@ -768,6 +768,30 @@ def _get_wiki_kb():
     with _wiki_kb_lock:
         return _wiki_kb["categories"], _wiki_kb["top100"]
 
+def _enrich_with_tmdb(results, max_items=20):
+    """Enrich recommendation results with TMDB posters and ratings using parallel fetches."""
+    def _fetch_poster(movie):
+        m = dict(movie)
+        if m.get("tmdb_id") and not m.get("poster"):
+            try:
+                t = "tv" if m.get("type") == "series" else "movie"
+                data = _tmdb_fetch(f"/{t}/{m['tmdb_id']}")
+                if data:
+                    if data.get("poster_path"):
+                        m["poster"] = f"https://image.tmdb.org/t/p/w300{data['poster_path']}"
+                    if data.get("vote_average"):
+                        m["rating"] = round(data["vote_average"], 1)
+                    if data.get("overview") and not m.get("description"):
+                        m["description"] = data["overview"][:150]
+            except Exception:
+                pass
+        return m
+
+    items = results[:max_items]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        enriched = list(pool.map(_fetch_poster, items))
+    return enriched
+
 def _google_search_titles(query, num=10, timeout=15):
     """Search Google for movie/series recommendations and extract titles (fallback)."""
     results = []
@@ -868,6 +892,9 @@ def get_recommendations_mood(mood):
     if not results:
         fallback = _google_search_titles(f"{mood} movies recommendations reddit")
         results = fallback[:20]
+
+    # Enrich with TMDB posters and ratings
+    results = _enrich_with_tmdb(results, max_items=20)
 
     result = {"mood": mood, "matched_categories": matched_cats, "results": results}
     reco_cache[cache_key] = {"data": result, "ts": now}
@@ -982,8 +1009,70 @@ def get_recommendations_similar(title):
     reco_cache[cache_key] = {"data": result, "ts": now}
     return result
 
+# TMDB genre name -> ID mapping for discover endpoint
+_TMDB_GENRE_MAP = {
+    "action": 28, "adventure": 12, "animation": 16, "comedy": 35, "crime": 80,
+    "documentary": 99, "drama": 18, "family": 10751, "fantasy": 14, "history": 36,
+    "horror": 27, "music": 10402, "mystery": 9648, "romance": 10749,
+    "science fiction": 878, "sci-fi": 878, "thriller": 53, "war": 10752, "western": 37,
+    "tv movie": 10770,
+}
+
+
+def _tmdb_get_recommendations_for_item(title, media_type="movie"):
+    """Search TMDB for a library item and return its recommendations."""
+    kind = "tv" if media_type in ("series", "tv") else "movie"
+    search = _tmdb_fetch(f"/search/{kind}?query={urllib.parse.quote(title)}")
+    if not search.get("results"):
+        return []
+    tmdb_id = search["results"][0].get("id")
+    if not tmdb_id:
+        return []
+    recs = _tmdb_fetch(f"/{kind}/{tmdb_id}/recommendations")
+    results = []
+    for s in recs.get("results", [])[:10]:
+        s_title = s.get("title") or s.get("name", "")
+        year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
+        poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+        s_type = "series" if kind == "tv" else "movie"
+        genre_ids = s.get("genre_ids", [])
+        results.append({
+            "title": s_title, "year": year, "type": s_type,
+            "description": (s.get("overview") or "")[:200],
+            "rating": str(round(s.get("vote_average", 0), 1)),
+            "poster": poster,
+            "tmdb_id": str(s.get("id", "")),
+            "torrent_query": f"{s_title} {year}".strip(),
+            "genre_ids": genre_ids,
+        })
+    return results
+
+
+def _tmdb_discover_by_genres(genre_ids, media_type="movie", page=1):
+    """Use TMDB discover endpoint to find movies/TV by genre IDs."""
+    kind = "tv" if media_type in ("series", "tv") else "movie"
+    genres_str = ",".join(str(g) for g in genre_ids)
+    data = _tmdb_fetch(f"/discover/{kind}?with_genres={genres_str}&sort_by=vote_average.desc&vote_count.gte=100&page={page}")
+    results = []
+    for s in data.get("results", [])[:20]:
+        s_title = s.get("title") or s.get("name", "")
+        year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
+        poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+        s_type = "series" if kind == "tv" else "movie"
+        results.append({
+            "title": s_title, "year": year, "type": s_type,
+            "description": (s.get("overview") or "")[:200],
+            "rating": str(round(s.get("vote_average", 0), 1)),
+            "poster": poster,
+            "tmdb_id": str(s.get("id", "")),
+            "torrent_query": f"{s_title} {year}".strip(),
+            "genre_ids": s.get("genre_ids", []),
+        })
+    return results
+
+
 def get_recommendations_library():
-    """Analyze Jellyfin library genres and recommend from wiki KB."""
+    """Analyze Jellyfin library and recommend using TMDB API."""
     cache_key = "library"
     now = time.time()
     if cache_key in reco_cache and (now - reco_cache[cache_key]["ts"]) < RECO_TTL:
@@ -992,6 +1081,7 @@ def get_recommendations_library():
     # Get Jellyfin library items
     genres = []
     library_titles = set()
+    library_items_raw = []  # (title, type, genres)
     try:
         users_data = jellyfin_request("/Users")
         user_id = ""
@@ -999,19 +1089,25 @@ def get_recommendations_library():
             user_id = users_data[0].get("Id", "")
 
         if user_id:
-            items = jellyfin_request(f"/Users/{user_id}/Items?IncludeItemTypes=Movie&Limit=50&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
-            if isinstance(items, dict) and "Items" in items:
-                for item in items["Items"]:
-                    library_titles.add(item.get("Name", "").lower())
-                    for g in item.get("Genres", []):
+            movies = jellyfin_request(f"/Users/{user_id}/Items?IncludeItemTypes=Movie&Limit=50&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
+            if isinstance(movies, dict) and "Items" in movies:
+                for item in movies["Items"]:
+                    name = item.get("Name", "")
+                    library_titles.add(name.lower())
+                    item_genres = item.get("Genres", [])
+                    for g in item_genres:
                         genres.append(g)
+                    library_items_raw.append({"title": name, "type": "movie", "genres": item_genres})
 
-            items = jellyfin_request(f"/Users/{user_id}/Items?IncludeItemTypes=Series&Limit=30&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
-            if isinstance(items, dict) and "Items" in items:
-                for item in items["Items"]:
-                    library_titles.add(item.get("Name", "").lower())
-                    for g in item.get("Genres", []):
+            series = jellyfin_request(f"/Users/{user_id}/Items?IncludeItemTypes=Series&Limit=30&SortBy=DatePlayed&SortOrder=Descending&Recursive=true")
+            if isinstance(series, dict) and "Items" in series:
+                for item in series["Items"]:
+                    name = item.get("Name", "")
+                    library_titles.add(name.lower())
+                    item_genres = item.get("Genres", [])
+                    for g in item_genres:
                         genres.append(g)
+                    library_items_raw.append({"title": name, "type": "series", "genres": item_genres})
     except Exception:
         pass
 
@@ -1024,59 +1120,133 @@ def get_recommendations_library():
         genre_count[g] = genre_count.get(g, 0) + 1
     top_genres = sorted(genre_count.keys(), key=lambda g: genre_count[g], reverse=True)[:5]
 
-    categories, _ = _get_wiki_kb()
+    # Enrich library items with TMDB posters (parallel)
+    def _enrich_library_item(item):
+        kind = "tv" if item["type"] == "series" else "movie"
+        search = _tmdb_fetch(f"/search/{kind}?query={urllib.parse.quote(item['title'])}")
+        if search.get("results"):
+            first = search["results"][0]
+            poster = f"https://image.tmdb.org/t/p/w300{first['poster_path']}" if first.get("poster_path") else ""
+            year = (first.get("release_date") or first.get("first_air_date") or "")[:4]
+            return {
+                "title": item["title"], "year": year, "type": item["type"],
+                "poster": poster,
+                "tmdb_id": str(first.get("id", "")),
+                "rating": str(round(first.get("vote_average", 0), 1)),
+                "description": (first.get("overview") or "")[:150],
+                "genres": item["genres"],
+                "torrent_query": f"{item['title']} {year}".strip(),
+            }
+        return {
+            "title": item["title"], "year": "", "type": item["type"],
+            "poster": "", "tmdb_id": "", "rating": "", "description": "",
+            "genres": item["genres"], "torrent_query": item["title"],
+        }
 
-    # Match library genres to wiki categories
-    matched_cats = _match_categories(top_genres, categories)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        library_items = list(pool.map(_enrich_library_item, library_items_raw[:40]))
 
-    all_movies = []
+    # Get TMDB recommendations based on random sample of library items
+    sample_items = random.sample(library_items_raw, min(6, len(library_items_raw)))
+    suggestions = []
     seen = set(library_titles)
 
-    for cat_name in matched_cats:
-        for movie in categories.get(cat_name, []):
-            key = movie["title"].lower()
+    def _get_recs(item):
+        return _tmdb_get_recommendations_for_item(item["title"], item["type"])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        all_recs = list(pool.map(_get_recs, sample_items))
+
+    for recs in all_recs:
+        for rec in recs:
+            key = rec["title"].lower()
             if key not in seen:
                 seen.add(key)
-                all_movies.append(movie)
+                suggestions.append(rec)
 
-    random.shuffle(all_movies)
-    results = all_movies[:20]
+    # Also use TMDB discover with top genre IDs as supplementary
+    tmdb_genre_ids = []
+    for g in top_genres[:3]:
+        g_lower = g.lower()
+        if g_lower in _TMDB_GENRE_MAP:
+            tmdb_genre_ids.append(_TMDB_GENRE_MAP[g_lower])
 
-    # Fallback if wiki didn't match well
-    if not results:
-        for genre in top_genres:
-            fallback = _google_search_titles(f"best {genre} movies recommendations reddit")
-            for t in fallback:
-                key = t["title"].lower()
-                if key not in seen:
-                    seen.add(key)
-                    results.append(t)
-                if len(results) >= 20:
-                    break
-            if len(results) >= 20:
-                break
+    if tmdb_genre_ids:
+        discover_results = _tmdb_discover_by_genres(tmdb_genre_ids, "movie")
+        for rec in discover_results:
+            key = rec["title"].lower()
+            if key not in seen:
+                seen.add(key)
+                suggestions.append(rec)
 
-    result = {"genres": top_genres, "library_count": len(library_titles), "matched_categories": matched_cats, "results": results[:20]}
+    random.shuffle(suggestions)
+    suggestions = suggestions[:30]
+
+    result = {
+        "genres": top_genres,
+        "library_count": len(library_titles),
+        "library_items": library_items,
+        "suggestions": suggestions,
+    }
     reco_cache[cache_key] = {"data": result, "ts": now}
     return result
 
-def get_recommendations_trending():
-    """Get trending movies from the latest monthly top100 wiki lists."""
-    cache_key = "trending"
+def get_recommendations_trending(time_window="week"):
+    """Get trending movies and TV from TMDB trending API."""
+    cache_key = f"trending:{time_window}"
     now = time.time()
     if cache_key in reco_cache and (now - reco_cache[cache_key]["ts"]) < RECO_TTL:
         return reco_cache[cache_key]["data"]
 
-    _, top100 = _get_wiki_kb()
+    results = []
+    seen = set()
 
-    results = top100[:50]  # Already deduplicated in loader
+    # Fetch trending movies and TV in parallel
+    def _fetch_trending_movies():
+        return _tmdb_fetch(f"/trending/movie/{time_window}")
 
-    # Fallback if top100 is empty
-    if not results:
-        fallback = _google_search_titles("best movies 2025 2026 reddit recommendations")
-        results = fallback[:20]
+    def _fetch_trending_tv():
+        return _tmdb_fetch(f"/trending/tv/{time_window}")
 
-    result = {"results": results}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f_movies = pool.submit(_fetch_trending_movies)
+        f_tv = pool.submit(_fetch_trending_tv)
+
+    for item in f_movies.result().get("results", [])[:20]:
+        title = item.get("title", "")
+        key = title.lower()
+        if key and key not in seen:
+            seen.add(key)
+            year = (item.get("release_date") or "")[:4]
+            poster = f"https://image.tmdb.org/t/p/w300{item['poster_path']}" if item.get("poster_path") else ""
+            results.append({
+                "title": title, "year": year, "type": "movie",
+                "description": (item.get("overview") or "")[:200],
+                "rating": str(round(item.get("vote_average", 0), 1)),
+                "poster": poster,
+                "tmdb_id": str(item.get("id", "")),
+                "torrent_query": f"{title} {year}".strip(),
+                "genre_ids": item.get("genre_ids", []),
+            })
+
+    for item in f_tv.result().get("results", [])[:20]:
+        title = item.get("name", "")
+        key = title.lower()
+        if key and key not in seen:
+            seen.add(key)
+            year = (item.get("first_air_date") or "")[:4]
+            poster = f"https://image.tmdb.org/t/p/w300{item['poster_path']}" if item.get("poster_path") else ""
+            results.append({
+                "title": title, "year": year, "type": "series",
+                "description": (item.get("overview") or "")[:200],
+                "rating": str(round(item.get("vote_average", 0), 1)),
+                "poster": poster,
+                "tmdb_id": str(item.get("id", "")),
+                "torrent_query": f"{title} {year}".strip(),
+                "genre_ids": item.get("genre_ids", []),
+            })
+
+    result = {"results": results, "time_window": time_window}
     reco_cache[cache_key] = {"data": result, "ts": now}
     return result
 
@@ -1456,7 +1626,10 @@ class JarvisHandler(BaseHTTPRequestHandler):
         elif path == "/api/recommendations/library":
             self.send_json(get_recommendations_library())
         elif path == "/api/recommendations/trending":
-            self.send_json(get_recommendations_trending())
+            tw = params.get("time_window", ["week"])[0]
+            if tw not in ("day", "week"):
+                tw = "week"
+            self.send_json(get_recommendations_trending(tw))
         elif path == "/api/recommendations/categories":
             self.send_json(get_recommendations_categories())
         elif path == "/api/recommendations/autocomplete":
