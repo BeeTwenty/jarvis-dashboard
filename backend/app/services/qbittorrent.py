@@ -16,10 +16,10 @@ def _login() -> bool:
             f"{settings.qbit_base}/auth/login",
             data={"username": settings.qbit_user, "password": settings.qbit_pass},
         )
-        for cookie in resp.headers.get_all("set-cookie"):
-            if "SID=" in cookie:
-                _sid = cookie.split("SID=")[1].split(";")[0]
-                return True
+        sid = resp.cookies.get("SID")
+        if sid:
+            _sid = sid
+            return True
     except Exception:
         pass
     return False

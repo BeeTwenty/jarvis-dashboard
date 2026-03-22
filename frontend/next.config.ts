@@ -3,7 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   sassOptions: {},
   devIndicators: false,
-  allowedDevOrigins: [process.env.DEV_ORIGIN || 'localhost'],
+  allowedDevOrigins: ['192.168.0.2'],
   async rewrites() {
     return [
       {
