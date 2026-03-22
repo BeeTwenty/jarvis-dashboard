@@ -1,0 +1,83 @@
+@use '../../styles/variables' as *;
+
+.searchBar { display: flex; gap: $space-sm; margin-bottom: $space-lg; }
+
+.searchInputWrap {
+  flex: 1;
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.searchInput { padding-left: 38px !important; }
+
+.results {
+  @include card;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: $space-lg;
+}
+
+.resultItem {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: 10px $space-xl;
+  border-bottom: 1px solid var(--row-border);
+  font-size: $text-sm;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--row-border); }
+}
+
+.resultName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.resultMeta { font-family: $font-mono; font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+.resultSeeds { font-family: $font-mono; font-size: $text-xs; color: $green; flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+
+.addBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  &:hover { background: rgba($green, 0.18) !important; box-shadow: 0 2px 8px rgba($green, 0.15) !important; }
+}
+
+.list { display: flex; flex-direction: column; gap: $space-sm; }
+
+.torrent {
+  @include card;
+  padding: $space-lg $space-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  transition: border-color $duration-normal, transform $duration-normal $ease-smooth;
+
+  &:hover {
+    border-color: var(--card-hover-border);
+    transform: translateX(2px);
+  }
+}
+
+.torrentTop { display: flex; align-items: center; gap: $space-sm; }
+.torrentName { flex: 1; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.torrentBottom {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+}
+
+.pctLabel { width: 32px; font-weight: 600; color: var(--text-secondary); }
+.torrentMeta { flex-shrink: 0; }
+.torrentSpeed { color: $green; flex-shrink: 0; display: flex; align-items: center; gap: 3px; }
+.torrentEta { color: $orange; flex-shrink: 0; display: flex; align-items: center; gap: 3px; }
+.torrentState { flex-shrink: 0; font-size: 0.6rem; opacity: 0.6; }

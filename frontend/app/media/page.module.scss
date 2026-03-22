@@ -1,0 +1,94 @@
+@use '../../styles/variables' as *;
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-lg;
+  @include mobile { grid-template-columns: 1fr; }
+}
+
+.statCard {
+  @include card;
+  text-align: center;
+  padding: $space-3xl $space-xl;
+  transition: transform $duration-normal $ease-smooth, box-shadow $duration-normal, border-color $duration-normal;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--glass-shadow-lg);
+    border-color: var(--card-interactive-hover-border);
+  }
+}
+
+.statIcon {
+  margin-bottom: $space-md;
+  opacity: 0.7;
+  transition: transform $duration-normal $ease-spring, opacity $duration-normal;
+  .statCard:hover & { transform: scale(1.2); opacity: 1; }
+}
+
+.statNum {
+  font-size: $text-4xl;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: $font-rounded;
+  letter-spacing: -0.04em;
+}
+
+.statLabel {
+  font-size: $text-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin-top: $space-xs;
+}
+
+.playingList { display: flex; flex-direction: column; gap: $space-sm; }
+
+.playingItem {
+  @include card;
+  padding: $space-lg $space-xl;
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  background: rgba($green, 0.04);
+  border: 1px solid rgba($green, 0.08);
+  transition: border-color $duration-normal, box-shadow $duration-normal;
+
+  &:hover {
+    border-color: rgba($green, 0.15);
+    box-shadow: 0 0 20px rgba($green, 0.06);
+  }
+}
+
+.npDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $green;
+  box-shadow: 0 0 10px rgba($green, 0.5);
+  animation: pulse 1.5s ease infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.npUser { color: $green; font-weight: 600; }
+.npTitle { font-weight: 500; color: var(--text-primary); }
+.npDevice { font-size: $text-xs; color: var(--text-tertiary); margin-top: 2px; }
+
+.mediaItem {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  padding: $space-md $space-xl;
+  border-bottom: 1px solid var(--row-border);
+  transition: background $duration-fast, padding-left $duration-normal $ease-smooth;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--row-border); padding-left: 24px; }
+}
+
+.mediaName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: $text-sm; color: var(--text-primary); }
+.mediaTime { font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; }

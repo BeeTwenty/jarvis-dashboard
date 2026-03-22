@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#060a13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>JARVIS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#060a13;--bg2:#0c1220;--card:rgba(12,20,40,0.65);
+  --border:rgba(30,58,95,0.45);--border-b:rgba(0,212,255,0.2);
+  --accent:#00d4ff;--accent-d:rgba(0,212,255,0.08);
+  --green:#00ff88;--green-d:rgba(0,255,136,0.08);
+  --red:#ff3366;--red-d:rgba(255,51,102,0.08);
+  --yellow:#ffaa00;--yellow-d:rgba(255,170,0,0.08);
+  --purple:#aa66ff;--purple-d:rgba(170,102,255,0.08);
+  --text:#c9d1d9;--dim:#4a5568;--bright:#e8edf3;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',system-ui,sans-serif;
+  --r:14px;--rs:8px;
+  --nav-h:52px;--hdr-h:50px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(rgba(0,212,255,0.012) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.012) 1px,transparent 1px);background-size:60px 60px;z-index:0;pointer-events:none}
+@keyframes scan{0%{transform:translateY(-100vh);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(100vh);opacity:0}}
+body::after{content:'';position:fixed;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 20px var(--accent);z-index:999;pointer-events:none;animation:scan 8s linear infinite}
+
+/* ─── Header ─── */
+header{position:fixed;top:0;left:0;right:0;z-index:50;height:var(--hdr-h);display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:rgba(6,10,19,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.logo{font-family:var(--mono);font-size:1.1rem;font-weight:700;letter-spacing:5px;color:var(--accent);text-shadow:0 0 25px rgba(0,212,255,0.4);white-space:nowrap}
+.logo span{color:var(--dim);font-weight:400;letter-spacing:1px;font-size:0.55rem;margin-left:8px}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.weather-mini{font-family:var(--mono);font-size:0.65rem;color:var(--dim);cursor:pointer;padding:3px 6px;border-radius:var(--rs);transition:all 0.2s}
+.weather-mini:hover{background:rgba(255,255,255,0.04);color:var(--text)}
+.weather-mini b{color:var(--text);font-weight:500}
+.uptime{font-family:var(--mono);font-size:0.62rem;color:var(--dim);letter-spacing:1px}
+.clock{font-family:var(--mono);font-size:0.75rem;color:var(--text);letter-spacing:2px}
+
+/* ─── Nav (desktop = top tabs below header, mobile = bottom bar) ─── */
+nav{position:fixed;top:var(--hdr-h);left:0;right:0;z-index:49;height:var(--nav-h);display:flex;align-items:center;padding:0 14px;gap:4px;background:rgba(6,10,19,0.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+nav::-webkit-scrollbar{display:none}
+.nav-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;border:none;background:transparent;border-radius:var(--rs);font-family:var(--mono);font-size:0.65rem;letter-spacing:1.5px;color:var(--dim);cursor:pointer;transition:all 0.2s;white-space:nowrap;flex-shrink:0}
+.nav-btn:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.nav-btn.active{color:var(--accent);background:var(--accent-d);box-shadow:0 0 12px rgba(0,212,255,0.08)}
+.nav-icon{font-size:0.85rem}
+
+@media(max-width:768px){
+  nav{top:auto;bottom:0;border-bottom:none;border-top:1px solid var(--border);padding:0 4px;justify-content:space-around;gap:0;padding-bottom:env(safe-area-inset-bottom)}
+  .nav-btn{flex-direction:column;gap:3px;padding:6px 8px;font-size:0.5rem;letter-spacing:1px;flex:1;justify-content:center}
+  .nav-icon{font-size:1rem}
+}
+
+/* ─── Main content area ─── */
+main{position:fixed;top:calc(var(--hdr-h) + var(--nav-h));left:0;right:0;bottom:0;overflow-y:auto;overflow-x:hidden;z-index:1;scroll-behavior:smooth}
+@media(max-width:768px){
+  main{top:var(--hdr-h);bottom:var(--nav-h)}
+}
+.page{display:none;max-width:1440px;margin:0 auto;padding:16px 18px 24px;animation:fadeUp 0.25s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── Cards ─── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);backdrop-filter:blur(12px);overflow:hidden;margin-bottom:14px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-family:var(--mono);font-size:0.62rem;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--dim)}
+.card-badge{font-family:var(--mono);font-size:0.58rem;letter-spacing:1px;padding:2px 9px;border-radius:20px}
+.card-body{padding:12px 16px}
+
+/* ─── Overview page: compact widgets ─── */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.ov-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:14px;cursor:pointer;transition:all 0.2s}
+.ov-card:hover{border-color:var(--border-b);transform:translateY(-1px)}
+.ov-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ov-card-title{font-family:var(--mono);font-size:0.58rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.ov-card-badge{font-family:var(--mono);font-size:0.55rem;padding:2px 8px;border-radius:12px}
+
+/* Mini gauges for overview */
+.mini-gauges{display:flex;gap:16px;justify-content:center;margin:6px 0}
+.mini-gauge{text-align:center}
+.mini-gauge svg{width:52px;height:52px}
+.mini-gauge-label{font-family:var(--mono);font-size:0.55rem;color:var(--dim);margin-top:3px}
+
+/* ─── Gauges ─── */
+.gauge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.gauge-card{display:flex;flex-direction:column;align-items:center;padding:16px 10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);gap:4px}
+.gauge-svg{width:80px;height:80px}
+.gauge-track{fill:none;stroke:rgba(255,255,255,0.04);stroke-width:6}
+.gauge-fill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s ease,stroke 0.5s ease}
+.gauge-text{font-family:var(--mono);font-size:13px;font-weight:600;fill:var(--bright);text-anchor:middle;dominant-baseline:central}
+.gauge-label{font-size:0.6rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.gauge-detail{font-family:var(--mono);font-size:0.62rem;color:var(--dim);text-align:center}
+.net-card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);gap:8px}
+.net-row{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:0.8rem}
+.net-arrow{font-size:0.7rem}.net-arrow.down{color:var(--green)}.net-arrow.up{color:var(--accent)}
+.net-label{font-size:0.6rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+.bw-chart-wrap{margin-top:12px;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden;background:var(--bg2)}
+.bw-canvas{width:100%;height:100px;display:block}
+
+/* ─── Quick actions ─── */
+.actions-grid{display:flex;flex-wrap:wrap;gap:8px}
+.action-btn{padding:10px 18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);cursor:pointer;font-family:var(--mono);font-size:0.7rem;color:var(--text);transition:all 0.2s;letter-spacing:1px;display:flex;align-items:center;gap:6px}
+.action-btn:hover{border-color:var(--accent);color:var(--accent)}
+.action-btn.working{opacity:0.5;pointer-events:none}
+
+/* ─── Toast ─── */
+#toast-container{position:fixed;top:60px;right:16px;z-index:300;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;background:rgba(12,20,40,0.95);border:1px solid var(--border);border-radius:var(--rs);backdrop-filter:blur(12px);font-family:var(--mono);font-size:0.7rem;color:var(--text);animation:toastIn 0.3s ease,toastOut 0.3s ease 4.7s;max-width:340px;pointer-events:auto}
+.toast.success{border-color:rgba(0,255,136,0.3);color:var(--green)}
+.toast.error{border-color:rgba(255,51,102,0.3);color:var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateX(20px)}}
+
+/* ─── Docker ─── */
+.docker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
+.docker-card{padding:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);display:flex;flex-direction:column;gap:6px;transition:border-color 0.3s}
+.docker-card:hover{border-color:var(--border-b)}
+.docker-top{display:flex;align-items:center;gap:7px}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.status-dot.running{background:var(--green);box-shadow:0 0 6px rgba(0,255,136,0.5);animation:pulse 2s ease infinite}
+.status-dot.exited{background:var(--red)}.status-dot.restarting{background:var(--yellow);animation:pulse 1s ease infinite}.status-dot.paused{background:var(--dim)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.docker-name{font-family:var(--mono);font-size:0.72rem;font-weight:500;color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;flex:1}
+.docker-name:hover{text-decoration:underline;text-decoration-color:var(--accent)}
+.docker-status{font-size:0.6rem;color:var(--dim)}
+.docker-stats{display:flex;gap:8px;font-family:var(--mono);font-size:0.6rem;color:var(--dim)}
+.docker-stats span b{color:var(--text);font-weight:500}
+.mini-bar{height:2px;border-radius:1px;background:rgba(255,255,255,0.04);overflow:hidden;margin-top:1px}
+.mini-bar-fill{height:100%;border-radius:1px;transition:width 1s ease}
+.docker-actions{display:flex;gap:4px;margin-top:2px}
+.docker-btn,.tbtn,.fe-btn,.log-btn{font-family:var(--mono);font-size:0.6rem;padding:3px 9px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;transition:all 0.2s;letter-spacing:0.5px}
+.docker-btn:hover,.tbtn:hover,.fe-btn:hover,.log-btn:hover{border-color:var(--accent);color:var(--accent)}
+.docker-btn.danger:hover,.fe-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.docker-btn:disabled,.tbtn:disabled{opacity:0.3;cursor:not-allowed}
+
+/* ─── Log panel ─── */
+.log-panel{position:fixed;top:0;right:0;bottom:0;width:min(520px,92vw);background:var(--bg);border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:transform 0.3s ease;display:flex;flex-direction:column}
+.log-panel.open{transform:translateX(0)}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.log-hdr-title{font-family:var(--mono);font-size:0.72rem;color:var(--accent);letter-spacing:2px}
+.log-close{background:none;border:none;color:var(--dim);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.log-close:hover{color:var(--red)}
+.log-actions{display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.log-btn.active{border-color:var(--green);color:var(--green)}
+.log-content{flex:1;overflow-y:auto;padding:12px;font-family:var(--mono);font-size:0.62rem;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-all;background:var(--bg2)}
+.log-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:199;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.log-overlay.open{opacity:1;pointer-events:auto}
+
+/* ─── Torrent search ─── */
+.torrent-search{display:flex;gap:8px;margin-bottom:10px}
+.torrent-search input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;font-family:var(--mono);font-size:0.72rem;color:var(--text);outline:none;transition:border-color 0.2s}
+.torrent-search input:focus{border-color:var(--accent)}
+.torrent-search input::placeholder{color:var(--dim)}
+.search-btn{padding:8px 14px;background:var(--accent-d);border:1px solid rgba(0,212,255,0.2);border-radius:var(--rs);font-family:var(--mono);font-size:0.65rem;color:var(--accent);cursor:pointer;transition:all 0.2s;letter-spacing:1px}
+.search-btn:hover{background:rgba(0,212,255,0.15)}
+.search-results{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:10px;max-height:280px;overflow-y:auto;display:none}
+.search-results.visible{display:block}
+.sr-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.02);gap:8px;font-size:0.7rem}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:rgba(0,212,255,0.02)}
+.sr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.sr-meta{display:flex;gap:8px;font-family:var(--mono);font-size:0.58rem;color:var(--dim);flex-shrink:0}
+.sr-meta .seeds{color:var(--green)}
+.sr-add{font-family:var(--mono);font-size:0.55rem;padding:3px 9px;border-radius:4px;border:1px solid rgba(0,255,136,0.2);background:var(--green-d);color:var(--green);cursor:pointer;transition:all 0.2s}
+.sr-add:hover{background:rgba(0,255,136,0.15)}
+
+/* ─── Torrents ─── */
+.torrent-hdr-stats{font-family:var(--mono);font-size:0.62rem;letter-spacing:1px;display:flex;gap:10px;color:var(--dim)}
+.torrent-hdr-stats .dl{color:var(--green)}.torrent-hdr-stats .ul{color:var(--accent)}
+.torrent-list{display:flex;flex-direction:column;gap:6px}
+.torrent-item{padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);display:flex;flex-direction:column;gap:6px;transition:border-color 0.3s}
+.torrent-item:hover{border-color:var(--border-b)}
+.torrent-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.torrent-name{font-size:0.73rem;font-weight:500;color:var(--bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.torrent-cat{font-family:var(--mono);font-size:0.52rem;font-weight:600;padding:2px 7px;border-radius:10px;letter-spacing:1px;text-transform:uppercase;flex-shrink:0}
+.cat-movies{background:var(--accent-d);color:var(--accent);border:1px solid rgba(0,212,255,0.2)}
+.cat-tv{background:var(--green-d);color:var(--green);border:1px solid rgba(0,255,136,0.2)}
+.cat-anime{background:var(--purple-d);color:var(--purple);border:1px solid rgba(170,102,255,0.2)}
+.cat-music{background:var(--yellow-d);color:var(--yellow);border:1px solid rgba(255,170,0,0.2)}
+.cat-default{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--border)}
+.torrent-row2{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:0.6rem;color:var(--dim)}
+.progress-bar{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.04);overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;transition:width 1s ease}
+.progress-fill.downloading{background:linear-gradient(90deg,var(--green),#00cc66)}
+.progress-fill.seeding{background:linear-gradient(90deg,var(--accent),#0099cc)}
+.progress-fill.paused{background:var(--dim)}.progress-fill.error{background:var(--red)}
+.torrent-meta{display:flex;gap:10px;flex-wrap:wrap}
+.torrent-meta .speed{color:var(--green)}.torrent-meta .eta{color:var(--yellow)}
+
+/* ─── Storage ─── */
+.storage-bar{display:flex;height:22px;border-radius:var(--rs);overflow:hidden;background:rgba(255,255,255,0.02);margin-bottom:10px}
+.storage-seg{transition:flex-basis 1s ease;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:0.5rem;color:rgba(0,0,0,0.7);font-weight:600;overflow:hidden;white-space:nowrap;min-width:0}
+.storage-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:0.65rem}
+.storage-legend-item{display:flex;align-items:center;gap:5px}
+.storage-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.storage-legend-size{font-family:var(--mono);font-size:0.58rem;color:var(--dim)}
+
+/* ─── Processes ─── */
+.proc-tabs{display:flex;gap:6px;margin-bottom:8px}
+.proc-tab{font-family:var(--mono);font-size:0.58rem;padding:4px 12px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;transition:all 0.2s;letter-spacing:1px}
+.proc-tab.active{border-color:var(--accent);color:var(--accent);background:var(--accent-d)}
+.proc-row{display:flex;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,0.015);font-family:var(--mono);font-size:0.6rem;gap:6px;align-items:center}
+.proc-row:hover{background:rgba(0,212,255,0.02)}
+.proc-row.hdr{color:var(--dim);font-weight:600;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.proc-pid{width:45px;color:var(--dim)}.proc-user{width:60px;overflow:hidden;text-overflow:ellipsis}
+.proc-cpu,.proc-mem{width:45px;text-align:right}.proc-cmd{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+
+/* ─── Media ─── */
+.media-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.media-stat{text-align:center;padding:14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs)}
+.media-stat-num{font-family:var(--mono);font-size:1.4rem;font-weight:700;color:var(--bright);text-shadow:0 0 15px rgba(0,212,255,0.12)}
+.media-stat-label{font-size:0.52rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.media-sub{margin-top:10px}
+.media-sub-title{font-family:var(--mono);font-size:0.55rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.media-item{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.02);font-size:0.7rem}
+.media-item:last-child{border-bottom:none}
+.media-item-name{color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-item-type{font-family:var(--mono);font-size:0.48rem;padding:2px 6px;border-radius:8px;margin-left:6px;letter-spacing:1px;flex-shrink:0}
+.type-movie{background:var(--accent-d);color:var(--accent)}.type-series{background:var(--green-d);color:var(--green)}.type-episode{background:var(--purple-d);color:var(--purple)}
+.media-item-time{font-size:0.58rem;color:var(--dim);margin-left:6px;white-space:nowrap}
+.now-playing{padding:10px 12px;background:var(--green-d);border:1px solid rgba(0,255,136,0.15);border-radius:var(--rs);display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.np-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(0,255,136,0.5);animation:pulse 1.5s ease infinite}
+.np-info{font-size:0.72rem}.np-info .user{color:var(--green);font-weight:500}.np-info .title{color:var(--bright)}.np-info .device{font-size:0.58rem;color:var(--dim)}
+
+/* ─── File Explorer ─── */
+.fe-nav-btns{display:flex;gap:4px;align-items:center}
+.fe-path-bar{display:flex;gap:6px;margin-bottom:8px}
+.fe-path-bar input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:7px 12px;font-family:var(--mono);font-size:0.68rem;color:var(--text);outline:none;transition:border-color 0.2s}
+.fe-path-bar input:focus{border-color:var(--accent)}
+.fe-breadcrumb{display:flex;align-items:center;gap:2px;overflow-x:auto;font-family:var(--mono);font-size:0.62rem;white-space:nowrap;margin-bottom:8px;padding:4px 0;scrollbar-width:none}
+.fe-breadcrumb::-webkit-scrollbar{display:none}
+.fe-crumb{color:var(--dim);cursor:pointer;padding:3px 6px;border-radius:4px;transition:all 0.2s}
+.fe-crumb:hover{color:var(--accent);background:var(--accent-d);transform:translateY(-1px)}
+.fe-crumb.current{color:var(--text);background:rgba(255,255,255,0.03)}
+.fe-sep{color:rgba(255,255,255,0.1);margin:0 1px;user-select:none}
+.fe-row{display:flex;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.015);gap:8px;font-size:0.7rem;cursor:pointer;transition:all 0.2s ease;border-radius:5px;border-left:2px solid transparent}
+.fe-row:hover{background:rgba(0,212,255,0.03);border-left-color:rgba(0,212,255,0.3);padding-left:14px}
+.fe-row.selected{background:rgba(0,212,255,0.06);border-left-color:var(--accent)}
+.fe-row.hdr{font-family:var(--mono);font-size:0.58rem;color:var(--dim);font-weight:600;letter-spacing:1px;cursor:default;border-bottom:1px solid var(--border)}
+.fe-row.hdr:hover{background:transparent}
+.fe-icon{width:18px;text-align:center;font-size:0.75rem;flex-shrink:0}
+.fe-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.fe-name.dir{color:var(--accent);font-weight:500}
+.fe-size{width:65px;text-align:right;font-family:var(--mono);font-size:0.58rem;color:var(--dim);flex-shrink:0}
+.fe-mod{width:75px;text-align:right;font-family:var(--mono);font-size:0.56rem;color:var(--dim);flex-shrink:0}
+.fe-perm{width:75px;font-family:var(--mono);font-size:0.55rem;color:var(--dim);flex-shrink:0}
+.fe-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:250;display:none;align-items:center;justify-content:center}
+.fe-modal-overlay.open{display:flex}
+.fe-modal{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:20px;width:min(380px,90vw);display:flex;flex-direction:column;gap:12px}
+.fe-modal h3{font-family:var(--mono);font-size:0.72rem;letter-spacing:2px;color:var(--bright);font-weight:600}
+.fe-modal input{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 12px;font-family:var(--mono);font-size:0.72rem;color:var(--text);outline:none;width:100%}
+.fe-modal input:focus{border-color:var(--accent)}
+.fe-modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* ─── Common states ─── */
+.empty-state{text-align:center;padding:20px 14px;color:var(--dim);font-size:0.72rem}
+.empty-state .icon{font-size:1.2rem;margin-bottom:5px;display:block}
+.error-state{text-align:center;padding:14px;color:var(--red);font-size:0.68rem;background:var(--red-d);border:1px solid rgba(255,51,102,0.15);border-radius:var(--rs)}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.loading-bar{height:12px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,0.02) 25%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0.02) 75%);background-size:400px 100%;animation:shimmer 1.5s ease infinite}
+
+/* ─── Responsive ─── */
+@media(max-width:900px){.gauge-grid{grid-template-columns:repeat(2,1fr)}.docker-grid{grid-template-columns:repeat(2,1fr)}.actions-grid{gap:6px}.action-btn{padding:8px 12px;font-size:0.63rem}}
+@media(max-width:480px){.gauge-grid{grid-template-columns:1fr 1fr}.gauge-svg{width:66px;height:66px}.docker-grid{grid-template-columns:1fr}.logo span{display:none}.hdr-right{gap:8px}.uptime{display:none}.fe-perm,.fe-mod{display:none}.actions-grid{flex-direction:column}.action-btn{width:100%;justify-content:center}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">JARVIS <span>MISSION CONTROL</span></div>
+  <div class="hdr-right">
+    <div class="weather-mini" id="weather">--</div>
+    <div class="uptime" id="uptime">--</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<nav id="nav">
+  <button class="nav-btn active" data-page="overview"><span class="nav-icon">&#x25A3;</span> Overview</button>
+  <button class="nav-btn" data-page="system"><span class="nav-icon">&#x2699;</span> System</button>
+  <button class="nav-btn" data-page="docker"><span class="nav-icon">&#x2693;</span> Docker</button>
+  <button class="nav-btn" data-page="torrents"><span class="nav-icon">&#x21C5;</span> Torrents</button>
+  <button class="nav-btn" data-page="media"><span class="nav-icon">&#x25B6;</span> Media</button>
+  <button class="nav-btn" data-page="files"><span class="nav-icon">&#x1F4C1;</span> Files</button>
+</nav>
+
+<main>
+  <!-- ═══ Overview ═══ -->
+  <div class="page active" id="page-overview">
+    <div class="ov-grid" id="ov-grid"></div>
+  </div>
+
+  <!-- ═══ System ═══ -->
+  <div class="page" id="page-system">
+    <div class="card"><div class="card-hdr"><span class="card-title">System Gauges</span></div><div class="card-body"><div class="gauge-grid" id="sys-gauges"></div><div class="bw-chart-wrap"><canvas class="bw-canvas" id="bw-chart"></canvas></div></div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">Quick Actions</span></div><div class="card-body"><div class="actions-grid" id="actions">
+      <button class="action-btn" data-action="jellyfin-scan">&#x1F504; Scan Library</button>
+      <button class="action-btn" data-action="clean-torrents">&#x1F9F9; Clean Torrents</button>
+      <button class="action-btn" data-action="docker-prune">&#x1F5D1; Docker Prune</button>
+      <button class="action-btn" data-action="update-check">&#x1F4E6; Update Check</button>
+    </div></div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">Processes</span></div><div class="card-body"><div class="proc-tabs"><button class="proc-tab active" data-sort="cpu">Top CPU</button><button class="proc-tab" data-sort="mem">Top Memory</button></div><div id="proc-table"></div></div></div>
+    <div class="card"><div class="card-hdr"><span class="card-title">Storage</span></div><div class="card-body" id="storage-body"></div></div>
+  </div>
+
+  <!-- ═══ Docker ═══ -->
+  <div class="page" id="page-docker">
+    <div class="card"><div class="card-hdr"><span class="card-title">Containers</span><span class="card-badge" id="docker-badge" style="background:var(--green-d);color:var(--green);border:1px solid rgba(0,255,136,0.15)">--</span></div><div class="card-body"><div class="docker-grid" id="docker-grid"></div></div></div>
+  </div>
+
+  <!-- ═══ Torrents ═══ -->
+  <div class="page" id="page-torrents">
+    <div class="card"><div class="card-hdr"><span class="card-title">Torrents</span><div class="torrent-hdr-stats" id="transfer-stats"></div></div><div class="card-body">
+      <div class="torrent-search"><input type="text" id="search-input" placeholder="Search torrents..."><button class="search-btn" id="search-btn">SEARCH</button><button class="search-btn" id="search-close" style="display:none;background:var(--red-d);border-color:rgba(255,51,102,0.2);color:var(--red)">&times;</button></div>
+      <div class="search-results" id="search-results"></div>
+      <div class="torrent-list" id="torrent-list"></div>
+    </div></div>
+  </div>
+
+  <!-- ═══ Media ═══ -->
+  <div class="page" id="page-media">
+    <div class="card"><div class="card-hdr"><span class="card-title">Media Library</span></div><div class="card-body" id="media-body"></div></div>
+  </div>
+
+  <!-- ═══ Files ═══ -->
+  <div class="page" id="page-files">
+    <div class="card"><div class="card-hdr"><span class="card-title">File Explorer</span><div class="fe-nav-btns"><button class="fe-btn" id="fe-back-btn" disabled title="Back">&larr;</button><button class="fe-btn" id="fe-fwd-btn" disabled title="Forward">&rarr;</button><button class="fe-btn" id="fe-up-btn" title="Up">&uarr;</button><button class="fe-btn" id="fe-home-btn" title="Home">&#x2302;</button><button class="fe-btn" id="fe-root-btn" title="Root">/</button><button class="fe-btn" id="fe-mkdir-btn">+ Folder</button><button class="fe-btn" id="fe-refresh-btn">&#x21BB;</button></div></div><div class="card-body">
+      <div class="fe-path-bar"><input type="text" id="fe-path-input" spellcheck="false" placeholder="/home/animesh"><button class="fe-btn" id="fe-go-btn">GO</button></div>
+      <div class="fe-breadcrumb" id="fe-breadcrumb"></div>
+      <div id="fe-table" class="fe-table"></div>
+    </div></div>
+  </div>
+</main>
+
+<!-- Log panel -->
+<div class="log-overlay" id="log-overlay"></div>
+<div class="log-panel" id="log-panel">
+  <div class="log-hdr"><span class="log-hdr-title" id="log-title">LOGS</span><button class="log-close" id="log-close">&times;</button></div>
+  <div class="log-actions"><button class="log-btn" id="log-refresh">Refresh</button><button class="log-btn" id="log-auto">Auto &#x25CF;</button></div>
+  <pre class="log-content" id="log-content">Loading...</pre>
+</div>
+
+<!-- File modal -->
+<div class="fe-modal-overlay" id="fe-modal">
+  <div class="fe-modal">
+    <h3 id="fe-modal-title">Action</h3>
+    <input type="text" id="fe-modal-input" placeholder="...">
+    <div class="fe-modal-btns">
+      <button class="fe-btn" id="fe-modal-cancel">CANCEL</button>
+      <button class="fe-btn" id="fe-modal-confirm" style="border-color:var(--green);color:var(--green)">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ═══════════════ Helpers ═══════════════
+const $=id=>document.getElementById(id);
+function fmtB(b,d=1){if(!b||b===0)return'0 B';const u=['B','KB','MB','GB','TB'];const i=Math.floor(Math.log(Math.abs(b))/Math.log(1024));return(b/Math.pow(1024,i)).toFixed(d)+' '+u[i]}
+function fmtS(bps){return bps?fmtB(bps)+'/s':'0 B/s'}
+function fmtETA(s){if(!s||s<0||s>=8640000)return'\u221e';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>24)return Math.floor(h/24)+'d '+(h%24)+'h';return h>0?h+'h '+m+'m':m+'m'}
+function timeAgo(d){if(!d)return'';const s=(Date.now()-new Date(d).getTime())/1000;if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+function el(t,c,txt){const e=document.createElement(t);if(c)e.className=c;if(txt!==undefined)e.textContent=txt;return e}
+async function api(p,o={}){try{const c=new AbortController;const tm=setTimeout(()=>c.abort(),15000);const r=await fetch(p,{...o,signal:c.signal});clearTimeout(tm);const d=await r.json();return d&&d.error?{data:null,error:d.error}:{data:d,error:null}}catch(e){return{data:null,error:e.message||'Failed'}}}
+function toast(msg,type='success'){const t=el('div','toast '+type,msg);$('toast-container').appendChild(t);setTimeout(()=>t.remove(),5000)}
+function colorPct(p){return p<60?'var(--green)':p<85?'var(--yellow)':'var(--red)'}
+
+// ═══════════════ Navigation ═══════════════
+let currentPage='overview';
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const pg=btn.dataset.page;
+    if(pg===currentPage)return;
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    $('page-'+pg).classList.add('active');
+    currentPage=pg;
+    // Scroll to top
+    document.querySelector('main').scrollTop=0;
+    // Lazy-load file explorer on first visit
+    if(pg==='files'&&!feLoaded){feLoaded=true;feNavigate('')}
+  });
+});
+let feLoaded=false;
+
+// Navigate to a page programmatically
+function goTo(pg){document.querySelector(`.nav-btn[data-page="${pg}"]`).click()}
+
+// ═══════════════ Clock ═══════════════
+setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString('en-GB',{hour12:false})},1000);
+
+// ═══════════════ Gauge builder ═══════════════
+function gauge(pct,label,detail){
+  const r=38,circ=2*Math.PI*r,off=circ-(Math.min(pct,100)/100)*circ,col=colorPct(pct);
+  const d=el('div','gauge-card');
+  d.innerHTML=`<svg class="gauge-svg" viewBox="0 0 100 100"><circle class="gauge-track" cx="50" cy="50" r="${r}"/><circle class="gauge-fill" cx="50" cy="50" r="${r}" stroke="${col}" stroke-dasharray="${circ}" stroke-dashoffset="${off}" transform="rotate(-90 50 50)"/><text class="gauge-text" x="50" y="50">${Math.round(pct)}%</text></svg><div class="gauge-label">${label}</div><div class="gauge-detail">${detail}</div>`;
+  return d;
+}
+function miniGaugeSVG(pct,size=48){
+  const r=18,circ=2*Math.PI*r,off=circ-(Math.min(pct,100)/100)*circ,col=pct<60?'#00ff88':pct<85?'#ffaa00':'#ff3366';
+  return`<svg width="${size}" height="${size}" viewBox="0 0 48 48"><circle cx="24" cy="24" r="${r}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="4"/><circle cx="24" cy="24" r="${r}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${off}" transform="rotate(-90 24 24)" style="transition:stroke-dashoffset 1s ease"/><text x="24" y="24" text-anchor="middle" dominant-baseline="central" fill="${col}" font-family="JetBrains Mono" font-size="10" font-weight="600">${Math.round(pct)}%</text></svg>`;
+}
+
+// ═══════════════ Cached data ═══════════════
+let D={sys:null,containers:null,stats:null,torrents:null,transfer:null,counts:null,latest:null,sessions:null,procs:null,bw:null,storage:null,weather:null};
+
+// ═══════════════ Render: Overview ═══════════════
+function renderOverview(){
+  const g=$('ov-grid');g.innerHTML='';
+
+  // System card
+  const sysCard=el('div','ov-card');sysCard.onclick=()=>goTo('system');
+  let sysInner='<div class="ov-card-hdr"><span class="ov-card-title">System</span></div>';
+  if(D.sys){
+    const cpuP=Math.min(Math.round(D.sys.cpu_load[0]/D.sys.cpu_count*100),100);
+    sysInner+=`<div class="mini-gauges"><div class="mini-gauge">${miniGaugeSVG(cpuP)}<div class="mini-gauge-label">CPU</div></div><div class="mini-gauge">${miniGaugeSVG(D.sys.memory.used_percent)}<div class="mini-gauge-label">MEM</div></div><div class="mini-gauge">${miniGaugeSVG(D.sys.disk.used_percent)}<div class="mini-gauge-label">DISK</div></div></div>`;
+  }
+  sysCard.innerHTML=sysInner;g.appendChild(sysCard);
+
+  // Docker card
+  const dkCard=el('div','ov-card');dkCard.onclick=()=>goTo('docker');
+  let running=0,total=0;
+  if(Array.isArray(D.containers)){total=D.containers.length;running=D.containers.filter(c=>c.State==='running').length}
+  dkCard.innerHTML=`<div class="ov-card-hdr"><span class="ov-card-title">Docker</span><span class="ov-card-badge" style="background:var(--green-d);color:var(--green);border:1px solid rgba(0,255,136,0.15)">${running}/${total}</span></div><div style="font-family:var(--mono);font-size:0.7rem;color:var(--dim);margin-top:6px">${Array.isArray(D.containers)?D.containers.filter(c=>c.State!=='running').map(c=>c.Names?.replace(/^\//,'')).filter(Boolean).slice(0,3).map(n=>`<span style="color:var(--red)">\u25CF</span> ${n}`).join('<br>')||'<span style="color:var(--green)">All containers running</span>':''}</div>`;
+  g.appendChild(dkCard);
+
+  // Torrents card
+  const tCard=el('div','ov-card');tCard.onclick=()=>goTo('torrents');
+  const tCount=Array.isArray(D.torrents)?D.torrents.length:0;
+  const dlSpeed=D.transfer?fmtS(D.transfer.dl_info_speed):'--';
+  const active=Array.isArray(D.torrents)?D.torrents.filter(t=>t.state?.includes('DL')).length:0;
+  tCard.innerHTML=`<div class="ov-card-hdr"><span class="ov-card-title">Torrents</span><span class="ov-card-badge" style="background:var(--accent-d);color:var(--accent);border:1px solid rgba(0,212,255,0.15)">${tCount}</span></div><div style="font-family:var(--mono);font-size:0.75rem;margin-top:6px"><span style="color:var(--green)">\u25bc ${dlSpeed}</span></div><div style="font-size:0.62rem;color:var(--dim);margin-top:3px">${active} downloading</div>`;
+  g.appendChild(tCard);
+
+  // Media card
+  const mCard=el('div','ov-card');mCard.onclick=()=>goTo('media');
+  const mc=D.counts||{};
+  const npCount=Array.isArray(D.sessions)?D.sessions.filter(s=>s.NowPlayingItem).length:0;
+  mCard.innerHTML=`<div class="ov-card-hdr"><span class="ov-card-title">Media</span>${npCount?`<span class="ov-card-badge" style="background:var(--green-d);color:var(--green);border:1px solid rgba(0,255,136,0.15)">${npCount} playing</span>`:''}</div><div style="display:flex;gap:16px;margin-top:8px;font-family:var(--mono);font-size:0.7rem"><div><span style="font-size:1.1rem;font-weight:700;color:var(--bright)">${mc.MovieCount??'--'}</span><div style="font-size:0.5rem;color:var(--dim);letter-spacing:1px;margin-top:2px">MOVIES</div></div><div><span style="font-size:1.1rem;font-weight:700;color:var(--bright)">${mc.SeriesCount??'--'}</span><div style="font-size:0.5rem;color:var(--dim);letter-spacing:1px;margin-top:2px">SERIES</div></div><div><span style="font-size:1.1rem;font-weight:700;color:var(--bright)">${mc.EpisodeCount??'--'}</span><div style="font-size:0.5rem;color:var(--dim);letter-spacing:1px;margin-top:2px">EPISODES</div></div></div>`;
+  g.appendChild(mCard);
+
+  // Network card
+  const nCard=el('div','ov-card');nCard.onclick=()=>goTo('system');
+  const dl=D.transfer?fmtS(D.transfer.dl_info_speed):'--';
+  const ul=D.transfer?fmtS(D.transfer.up_info_speed):'--';
+  nCard.innerHTML=`<div class="ov-card-hdr"><span class="ov-card-title">Network</span></div><div style="font-family:var(--mono);font-size:0.8rem;margin-top:6px;display:flex;gap:16px"><div><span style="color:var(--green)">\u25bc</span> ${dl}</div><div><span style="color:var(--accent)">\u25b2</span> ${ul}</div></div>`;
+  g.appendChild(nCard);
+
+  // Weather card
+  const wCard=el('div','ov-card');
+  wCard.style.cursor='default';
+  if(D.weather&&!D.weather.error){
+    wCard.innerHTML=`<div class="ov-card-hdr"><span class="ov-card-title">Weather \u00b7 ${D.weather.city||''}</span></div><div style="margin-top:6px"><span style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--bright)">${D.weather.temp_c}\u00b0C</span> <span style="font-size:0.75rem;color:var(--dim)">${D.weather.condition}</span></div><div style="font-family:var(--mono);font-size:0.6rem;color:var(--dim);margin-top:4px">Feels ${D.weather.feels_like}\u00b0 \u00b7 ${D.weather.humidity}% humidity \u00b7 Wind ${D.weather.wind_kph}km/h</div>`;
+  } else {
+    wCard.innerHTML='<div class="ov-card-hdr"><span class="ov-card-title">Weather</span></div><div style="color:var(--dim);font-size:0.7rem;margin-top:6px">Loading...</div>';
+  }
+  g.appendChild(wCard);
+}
+
+// ═══════════════ Render: System ═══════════════
+function renderSys(){
+  const g=$('sys-gauges');g.innerHTML='';
+  const sys=D.sys,transfer=D.transfer;
+  if(!sys){g.innerHTML='<div class="error-state">System unavailable</div>';return}
+  const cpuP=Math.min(Math.round(sys.cpu_load[0]/sys.cpu_count*100),100);
+  g.appendChild(gauge(cpuP,'CPU',`${sys.cpu_load.map(l=>l.toFixed(1)).join(' / ')} \u00b7 ${sys.cpu_count}c`));
+  g.appendChild(gauge(sys.memory.used_percent,'Memory',`${((sys.memory.total_kb-sys.memory.available_kb)/1048576).toFixed(1)} / ${(sys.memory.total_kb/1048576).toFixed(1)} GB`));
+  g.appendChild(gauge(sys.disk.used_percent,'Disk',`${sys.disk.used_gb} / ${sys.disk.total_gb} GB`));
+  const n=el('div','net-card');
+  n.innerHTML=`<div class="net-label">Network</div><div class="net-row"><span class="net-arrow down">\u25bc</span><span>${transfer?fmtS(transfer.dl_info_speed):'--'}</span></div><div class="net-row"><span class="net-arrow up">\u25b2</span><span>${transfer?fmtS(transfer.up_info_speed):'--'}</span></div>`;
+  g.appendChild(n);
+  $('uptime').textContent='UP '+(sys.uptime_human||'--');
+}
+
+// ═══════════════ Bandwidth chart ═══════════════
+function drawBW(data){
+  const canvas=$('bw-chart');if(!canvas)return;
+  const dpr=window.devicePixelRatio||1;const rect=canvas.getBoundingClientRect();
+  canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+  const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
+  const W=rect.width,H=rect.height;c.clearRect(0,0,W,H);
+  if(!data||data.length<2){c.fillStyle='rgba(255,255,255,0.03)';c.font='11px JetBrains Mono';c.textAlign='center';c.fillText('Collecting bandwidth data...',W/2,H/2);return}
+  const maxV=Math.max(1,...data.map(d=>Math.max(d.dl,d.ul)))*1.1;const step=W/(data.length-1);
+  function drawLine(key,color,fill){c.beginPath();c.moveTo(0,H);data.forEach((d,i)=>{c.lineTo(i*step,H-(d[key]/maxV)*H*0.85)});c.lineTo(W,H);c.closePath();c.fillStyle=fill;c.fill();c.beginPath();data.forEach((d,i)=>{i===0?c.moveTo(i*step,H-(d[key]/maxV)*H*0.85):c.lineTo(i*step,H-(d[key]/maxV)*H*0.85)});c.strokeStyle=color;c.lineWidth=1.5;c.stroke()}
+  drawLine('dl','#00ff88','rgba(0,255,136,0.06)');drawLine('ul','#00d4ff','rgba(0,212,255,0.06)');
+  c.fillStyle='rgba(255,255,255,0.2)';c.font='9px JetBrains Mono';c.textAlign='right';c.fillText(fmtS(maxV),W-4,12);
+  const last=data[data.length-1];c.fillStyle='rgba(0,255,136,0.5)';c.fillText('\u25bc '+fmtS(last.dl),W-4,H-14);c.fillStyle='rgba(0,212,255,0.5)';c.fillText('\u25b2 '+fmtS(last.ul),W-4,H-3);
+}
+
+// ═══════════════ Docker ═══════════════
+function renderDocker(){
+  const containers=D.containers,stats=D.stats;
+  const g=$('docker-grid'),b=$('docker-badge');g.innerHTML='';
+  if(!containers||containers.error){g.innerHTML=`<div class="error-state">${containers?.error||'Docker unavailable'}</div>`;b.textContent='ERR';return}
+  const sm={};if(Array.isArray(stats))stats.forEach(s=>{sm[s.Name]=s});
+  const running=containers.filter(c=>c.State==='running').length;b.textContent=running+' running';
+  containers.sort((a,b)=>{if(a.State==='running'&&b.State!=='running')return-1;if(a.State!=='running'&&b.State==='running')return 1;return a.Names.localeCompare(b.Names)});
+  containers.forEach(co=>{
+    const card=el('div','docker-card');const name=co.Names.replace(/^\//,'');const state=co.State||'unknown';const st=sm[name];
+    const cpuP=st?parseFloat(st.CPUPerc)||0:0;const memP=st?parseFloat(st.MemPerc)||0:0;const isRun=state==='running';
+    card.innerHTML=`<div class="docker-top"><div class="status-dot ${state}"></div><div class="docker-name" data-container="${name}">${name}</div></div><div class="docker-status">${co.Status||state}</div><div class="docker-stats"><span>CPU <b>${st?st.CPUPerc:'--'}</b></span><span>MEM <b>${st?st.MemUsage:'--'}</b></span></div><div class="mini-bar"><div class="mini-bar-fill" style="width:${cpuP}%;background:${colorPct(cpuP)}"></div></div><div class="mini-bar"><div class="mini-bar-fill" style="width:${memP}%;background:${colorPct(memP)}"></div></div><div class="docker-actions"><button class="docker-btn" data-c="${name}" data-a="restart">\u21BB</button>${isRun?`<button class="docker-btn danger" data-c="${name}" data-a="stop">\u25A0</button>`:`<button class="docker-btn" data-c="${name}" data-a="start">\u25B6</button>`}</div>`;
+    g.appendChild(card);
+  });
+  g.querySelectorAll('.docker-btn').forEach(btn=>btn.addEventListener('click',async e=>{e.stopPropagation();btn.disabled=true;const r=await api('/api/docker/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({container:btn.dataset.c,action:btn.dataset.a})});toast(r.data?.message||r.error||'Done',r.error?'error':'success');setTimeout(refreshFast,1500)}));
+  g.querySelectorAll('.docker-name').forEach(n=>n.addEventListener('click',()=>openLogs(n.dataset.container)));
+}
+
+// ═══════════════ Log Panel ═══════════════
+let logContainer=null,logAutoTimer=null;
+function openLogs(name){logContainer=name;$('log-title').textContent=name.toUpperCase();$('log-panel').classList.add('open');$('log-overlay').classList.add('open');fetchLogs()}
+function closeLogs(){$('log-panel').classList.remove('open');$('log-overlay').classList.remove('open');if(logAutoTimer){clearInterval(logAutoTimer);logAutoTimer=null}$('log-auto').classList.remove('active');logContainer=null}
+async function fetchLogs(){if(!logContainer)return;$('log-content').textContent='Loading...';const r=await api(`/api/docker/logs?container=${encodeURIComponent(logContainer)}&lines=150`);$('log-content').textContent=r.data?.logs||r.error||'No logs';$('log-content').scrollTop=$('log-content').scrollHeight}
+$('log-close').addEventListener('click',closeLogs);$('log-overlay').addEventListener('click',closeLogs);$('log-refresh').addEventListener('click',fetchLogs);
+$('log-auto').addEventListener('click',function(){if(logAutoTimer){clearInterval(logAutoTimer);logAutoTimer=null;this.classList.remove('active')}else{logAutoTimer=setInterval(fetchLogs,3000);this.classList.add('active');fetchLogs()}});
+
+// ═══════════════ Torrents ═══════════════
+function renderTorrents(){
+  const torrents=D.torrents,transfer=D.transfer;
+  const list=$('torrent-list'),hdr=$('transfer-stats');
+  if(transfer&&!transfer.error)hdr.innerHTML=`<span class="dl">\u25bc ${fmtS(transfer.dl_info_speed)}</span><span class="ul">\u25b2 ${fmtS(transfer.up_info_speed)}</span>`;
+  list.innerHTML='';
+  if(!torrents||torrents.error){list.innerHTML=`<div class="error-state">${torrents?.error||'qBittorrent unavailable'}</div>`;return}
+  if(!Array.isArray(torrents)||!torrents.length){list.innerHTML='<div class="empty-state"><span class="icon">\u2728</span>No active torrents</div>';return}
+  torrents.sort((a,b)=>{const o={downloading:0,stalledDL:1,forcedDL:0,uploading:2,stalledUP:3,pausedDL:4,pausedUP:5};return(o[a.state]??6)-(o[b.state]??6)||a.progress-b.progress});
+  torrents.forEach(t=>{
+    const item=el('div','torrent-item');const pct=Math.round((t.progress||0)*100);const cat=(t.category||'').toLowerCase();const cc=['movies','tv','anime','music'].includes(cat)?`cat-${cat}`:'cat-default';
+    let sc='paused';if(t.state?.includes('DL')||t.state==='downloading')sc='downloading';else if(t.state?.includes('UP')||t.state==='uploading'||t.state==='seeding')sc='seeding';else if(t.state==='error')sc='error';
+    const isPaused=t.state?.startsWith('paused');
+    item.innerHTML=`<div class="torrent-row1"><span class="torrent-name" title="${(t.name||'').replace(/"/g,'&quot;')}">${t.name||'?'}</span>${cat?`<span class="torrent-cat ${cc}">${cat}</span>`:''}<button class="tbtn" data-hash="${t.hash}" data-action="${isPaused?'resume':'pause'}">${isPaused?'RESUME':'PAUSE'}</button></div><div class="torrent-row2"><span>${pct}%</span><div class="progress-bar"><div class="progress-fill ${sc}" style="width:${pct}%"></div></div><div class="torrent-meta"><span>${fmtB(t.size)}</span>${t.dlspeed>0?`<span class="speed">\u25bc ${fmtS(t.dlspeed)}</span>`:''}${t.eta>0&&t.eta<8640000?`<span class="eta">\u23f1 ${fmtETA(t.eta)}</span>`:''}<span>${t.state||''}</span></div></div>`;
+    list.appendChild(item);
+  });
+  list.querySelectorAll('.tbtn').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;await api(`/api/qbit/torrents/${btn.dataset.action}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`hashes=${btn.dataset.hash}`});setTimeout(refreshFast,800)}));
+}
+
+// Search
+$('search-btn').addEventListener('click',doSearch);$('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch()});
+$('search-close').addEventListener('click',hideSearch);
+function hideSearch(){$('search-results').classList.remove('visible');$('search-close').style.display='none'}
+async function doSearch(){
+  const q=$('search-input').value.trim();if(!q)return;
+  const sr=$('search-results');sr.innerHTML='<div style="padding:10px;text-align:center;color:var(--dim);font-size:0.68rem">Searching...</div>';sr.classList.add('visible');$('search-close').style.display='';
+  const r=await api(`/api/torrent-search?q=${encodeURIComponent(q)}`);sr.innerHTML='';
+  if(r.error||!r.data||!Array.isArray(r.data)||!r.data.length){sr.innerHTML='<div style="padding:10px;text-align:center;color:var(--dim);font-size:0.68rem">No results</div>';setTimeout(hideSearch,3000);return}
+  r.data.forEach(t=>{const item=el('div','sr-item');item.innerHTML=`<span class="sr-name" title="${t.name}">${t.name}</span><div class="sr-meta"><span>${fmtB(t.size)}</span><span class="seeds">\u25b2${t.seeders}</span><span>\u25bc${t.leechers}</span></div><button class="sr-add" data-hash="${t.info_hash}" data-name="${t.name.replace(/"/g,'&quot;')}">ADD</button>`;sr.appendChild(item)});
+  sr.querySelectorAll('.sr-add').forEach(btn=>btn.addEventListener('click',async()=>{btn.disabled=true;btn.textContent='...';const magnet=`magnet:?xt=urn:btih:${btn.dataset.hash}&dn=${encodeURIComponent(btn.dataset.name)}`;const r=await api('/api/torrent-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({magnet})});toast(r.error?r.error:`Added: ${btn.dataset.name.substring(0,50)}`,r.error?'error':'success');btn.textContent=r.error?'ERR':'\u2713';setTimeout(()=>{hideSearch();$('search-input').value='';refreshFast()},1500)}));
+}
+
+// ═══════════════ Processes ═══════════════
+let procSort='cpu';
+function renderProcs(){
+  const data=D.procs;const tbl=$('proc-table');tbl.innerHTML='';
+  if(!data||data.error){tbl.innerHTML=`<div class="error-state">${data?.error||'Unavailable'}</div>`;return}
+  const list=procSort==='cpu'?data.by_cpu:data.by_mem;if(!list||!list.length){tbl.innerHTML='<div class="empty-state">No processes</div>';return}
+  tbl.innerHTML=`<div class="proc-row hdr"><span class="proc-pid">PID</span><span class="proc-user">USER</span><span class="proc-cpu">CPU%</span><span class="proc-mem">MEM%</span><span class="proc-cmd">COMMAND</span></div>`;
+  list.forEach(p=>{const row=el('div','proc-row');row.innerHTML=`<span class="proc-pid">${p.pid}</span><span class="proc-user">${p.user}</span><span class="proc-cpu" style="color:${colorPct(p.cpu)}">${p.cpu.toFixed(1)}</span><span class="proc-mem" style="color:${colorPct(p.mem*10)}">${p.mem.toFixed(1)}</span><span class="proc-cmd" title="${p.command}">${p.command}</span>`;tbl.appendChild(row)});
+}
+document.querySelectorAll('.proc-tab').forEach(tab=>tab.addEventListener('click',function(){document.querySelectorAll('.proc-tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');procSort=this.dataset.sort;renderProcs()}));
+
+// ═══════════════ Storage ═══════════════
+const SCOL=['#00d4ff','#00ff88','#aa66ff','#ffaa00','#ff8844','#ff3366','#66ccff','#88ff66'];
+function renderStorage(){
+  const data=D.storage;const body=$('storage-body');body.innerHTML='';
+  if(!data||data.error){body.innerHTML=`<div class="error-state">${data?.error||'Unavailable'}</div>`;return}
+  if(!data.dirs||!data.dirs.length){body.innerHTML='<div class="empty-state">No media directories</div>';return}
+  const total=data.dirs.reduce((a,d)=>a+d.size_bytes,0)||1;
+  const bar=el('div','storage-bar');data.dirs.forEach((d,i)=>{const seg=el('div','storage-seg');seg.style.flexBasis=(d.size_bytes/total*100)+'%';seg.style.background=SCOL[i%SCOL.length];if(d.size_bytes/total>0.08)seg.textContent=d.name;bar.appendChild(seg)});
+  body.appendChild(bar);
+  const legend=el('div','storage-legend');data.dirs.forEach((d,i)=>{const item=el('div','storage-legend-item');item.innerHTML=`<div class="storage-dot" style="background:${SCOL[i%SCOL.length]}"></div><span>${d.name}</span><span class="storage-legend-size">${fmtB(d.size_bytes)}</span>`;legend.appendChild(item)});
+  body.appendChild(legend);
+  if(data.total_gb){const s=el('div','');s.style.cssText='margin-top:8px;font-family:var(--mono);font-size:0.58rem;color:var(--dim)';s.textContent=`Disk: ${data.used_gb} / ${data.total_gb} GB \u00b7 ${data.free_gb} GB free`;body.appendChild(s)}
+}
+
+// ═══════════════ Media ═══════════════
+function renderMedia(){
+  const counts=D.counts,latest=D.latest,sessions=D.sessions;
+  const body=$('media-body');body.innerHTML='';
+  const hasErr=(!counts||counts.error)&&(!latest||latest.error);
+  if(hasErr){body.innerHTML=`<div class="error-state">${counts?.error||'Jellyfin unavailable'}</div>`;return}
+  if(counts&&!counts.error){const stats=el('div','media-stats');[{n:counts.MovieCount??0,l:'Movies'},{n:counts.SeriesCount??0,l:'Series'},{n:counts.EpisodeCount??0,l:'Episodes'}].forEach(s=>{const c=el('div','media-stat');c.innerHTML=`<div class="media-stat-num">${s.n.toLocaleString()}</div><div class="media-stat-label">${s.l}</div>`;stats.appendChild(c)});body.appendChild(stats)}
+  if(Array.isArray(sessions)){const playing=sessions.filter(s=>s.NowPlayingItem);if(playing.length){const sub=el('div','media-sub');sub.innerHTML='<div class="media-sub-title">Now Playing</div>';playing.forEach(s=>{const np=el('div','now-playing');np.innerHTML=`<div class="np-dot"></div><div class="np-info"><span class="user">${s.UserName||'?'}</span> watching <span class="title">${s.NowPlayingItem?.Name||'?'}</span><div class="device">${s.DeviceName||''} ${s.Client||''}</div></div>`;sub.appendChild(np)});body.appendChild(sub)}}
+  if(Array.isArray(latest)&&latest.length){const sub=el('div','media-sub');sub.innerHTML='<div class="media-sub-title">Recently Added</div>';latest.forEach(item=>{const row=el('div','media-item');const t=item.Type||'?';const tc=t==='Movie'?'type-movie':t==='Series'?'type-series':'type-episode';row.innerHTML=`<span class="media-item-name" title="${(item.Name||'').replace(/"/g,'&quot;')}">${item.Name||'?'}</span><span class="media-item-type ${tc}">${t}</span><span class="media-item-time">${timeAgo(item.DateCreated)}</span>`;sub.appendChild(row)});body.appendChild(sub)}
+}
+
+// ═══════════════ Weather ═══════════════
+function renderWeather(){const w=$('weather');if(!D.weather||D.weather.error){w.textContent='--';return}w.innerHTML=`<b>${D.weather.temp_c}\u00b0</b> ${D.weather.condition}`;w.title=`Feels ${D.weather.feels_like}\u00b0C \u00b7 ${D.weather.humidity}% humidity \u00b7 Wind ${D.weather.wind_kph}km/h`}
+
+// ═══════════════ Quick Actions ═══════════════
+document.querySelectorAll('.action-btn').forEach(btn=>btn.addEventListener('click',async function(){this.classList.add('working');const orig=this.innerHTML;this.innerHTML='Working...';const r=await api(`/api/actions/${this.dataset.action}`,{method:'POST'});toast(r.data?.message||r.error||'Done',r.error?'error':'success');this.innerHTML=orig;this.classList.remove('working');if(this.dataset.action==='clean-torrents')setTimeout(refreshFast,1000)}));
+
+// ═══════════════ File Explorer ═══════════════
+let fePath='/home/animesh', feSelected=null;
+let feHistory=[], feHistoryIdx=-1, feNavigating=false;
+
+function feUpdateNavBtns(){
+  $('fe-back-btn').disabled=feHistoryIdx<=0;
+  $('fe-fwd-btn').disabled=feHistoryIdx>=feHistory.length-1;
+}
+
+async function feNavigate(p, addToHistory=true){
+  feSelected=null;
+  const r=await api(`/api/files/list?path=${encodeURIComponent(p)}`);
+  if(r.data&&!r.data.error){
+    fePath=r.data.path; // use resolved absolute path from server
+    $('fe-path-input').value=fePath;
+    if(addToHistory){
+      // Trim forward history when navigating new
+      if(feHistoryIdx<feHistory.length-1)feHistory=feHistory.slice(0,feHistoryIdx+1);
+      feHistory.push(fePath);
+      feHistoryIdx=feHistory.length-1;
+    }
+    feUpdateNavBtns();
+  }
+  renderFE(r.data);
+}
+
+function renderFE(data){
+  const tbl=$('fe-table'),bc=$('fe-breadcrumb');tbl.innerHTML='';
+  if(!data||data.error){tbl.innerHTML=`<div class="error-state">${data?.error||'Error'}</div>`;return}
+  // Breadcrumb from absolute path
+  bc.innerHTML='';
+  const parts=data.path.split('/').filter(Boolean);
+  const root=el('span','fe-crumb','/');root.addEventListener('click',()=>feNavigate('/'));bc.appendChild(root);
+  let accumulated='';
+  parts.forEach((p,i)=>{
+    bc.appendChild(el('span','fe-sep','/'));
+    accumulated+='/'+p;
+    const crumb=el('span',i===parts.length-1?'fe-crumb current':'fe-crumb',p);
+    const navTo=accumulated;
+    crumb.addEventListener('click',()=>feNavigate(navTo));
+    bc.appendChild(crumb);
+  });
+  // Scroll breadcrumb to end
+  setTimeout(()=>bc.scrollLeft=bc.scrollWidth,0);
+
+  tbl.innerHTML=`<div class="fe-row hdr"><span class="fe-icon"></span><span class="fe-name">NAME</span><span class="fe-size">SIZE</span><span class="fe-mod">MODIFIED</span><span class="fe-perm">PERMS</span></div>`;
+  if(!data.items.length){tbl.innerHTML+='<div class="empty-state" style="padding:14px">Empty directory</div>';return}
+  data.items.forEach((item,idx)=>{
+    const row=el('div','fe-row');
+    row.style.animationDelay=(idx*15)+'ms';
+    row.style.animation='fadeUp 0.2s ease both';
+    const absPath=data.path+(data.path.endsWith('/')?'':'/')+item.name;
+    row.dataset.path=absPath;row.dataset.name=item.name;row.dataset.isDir=item.is_dir;
+    const mod=item.modified?new Date(item.modified*1000).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'--';
+    row.innerHTML=`<span class="fe-icon">${item.is_dir?'\uD83D\uDCC1':'\uD83D\uDCC4'}</span><span class="fe-name${item.is_dir?' dir':''}">${item.name}</span><span class="fe-size">${item.is_dir?'--':fmtB(item.size)}</span><span class="fe-mod">${mod}</span><span class="fe-perm">${item.permissions||''}</span>`;
+    row.addEventListener('dblclick',()=>{if(item.is_dir)feNavigate(absPath);else window.open(`/api/files/download?path=${encodeURIComponent(absPath)}`,'_blank')});
+    row.addEventListener('click',e=>{if(e.detail===2)return;tbl.querySelectorAll('.fe-row.selected').forEach(r=>r.classList.remove('selected'));row.classList.add('selected');feSelected={path:absPath,name:item.name,is_dir:item.is_dir}});
+    row.addEventListener('contextmenu',e=>{e.preventDefault();feSelected={path:absPath,name:item.name,is_dir:item.is_dir};tbl.querySelectorAll('.fe-row.selected').forEach(r=>r.classList.remove('selected'));row.classList.add('selected');showCtx(e.clientX,e.clientY)});
+    tbl.appendChild(row);
+  });
+}
+
+// Context menu
+let ctxMenu=null;
+function showCtx(x,y){removeCtx();if(!feSelected)return;const m=document.createElement('div');m.id='fe-ctx';m.style.cssText=`position:fixed;left:${Math.min(x,innerWidth-160)}px;top:${Math.min(y,innerHeight-200)}px;z-index:260;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:4px 0;min-width:150px;backdrop-filter:blur(16px);font-family:var(--mono);font-size:0.65rem;animation:fadeUp 0.15s ease`;
+  [{l:feSelected.is_dir?'\uD83D\uDCC2 Open':'\u2B07 Download',a:'open'},{l:'\u270F Rename',a:'rename'},{l:'\uD83D\uDCCB Copy',a:'copy'},{l:'\u2702 Move',a:'move'},{l:'\uD83D\uDDD1 Delete',a:'delete',d:true}].forEach(a=>{const i=document.createElement('div');i.textContent=a.l;i.style.cssText=`padding:8px 14px;cursor:pointer;transition:all 0.15s;color:${a.d?'var(--red)':'var(--text)'};border-left:2px solid transparent`;i.onmouseenter=()=>{i.style.background='rgba(0,212,255,0.04)';i.style.paddingLeft='18px';i.style.borderLeftColor=a.d?'var(--red)':'var(--accent)'};i.onmouseleave=()=>{i.style.background='';i.style.paddingLeft='14px';i.style.borderLeftColor='transparent'};i.onclick=()=>{removeCtx();feAction(a.a)};m.appendChild(i)});
+  document.body.appendChild(m);ctxMenu=m;setTimeout(()=>document.addEventListener('click',removeCtx,{once:true}),50)}
+function removeCtx(){if(ctxMenu){ctxMenu.remove();ctxMenu=null}}
+
+// Modal
+function feModal(title,ph,def){return new Promise(res=>{$('fe-modal-title').textContent=title;$('fe-modal-input').placeholder=ph;$('fe-modal-input').value=def||'';$('fe-modal').classList.add('open');$('fe-modal-input').focus();const done=v=>{$('fe-modal').classList.remove('open');res(v)};$('fe-modal-confirm').onclick=()=>done($('fe-modal-input').value.trim());$('fe-modal-cancel').onclick=()=>done(null);$('fe-modal-input').onkeydown=e=>{if(e.key==='Enter')done($('fe-modal-input').value.trim());if(e.key==='Escape')done(null)}})}
+
+// Actions
+async function feAction(a){
+  if(!feSelected)return;const sel=feSelected;const hdr={'Content-Type':'application/json'};
+  if(a==='open'){if(sel.is_dir)feNavigate(sel.path);else window.open(`/api/files/download?path=${encodeURIComponent(sel.path)}`,'_blank')}
+  else if(a==='rename'){const n=await feModal('Rename','New name...',sel.name);if(!n||n===sel.name)return;const r=await api('/api/files/rename',{method:'POST',headers:hdr,body:JSON.stringify({path:sel.path,name:n})});toast(r.data?.message||r.error,r.error?'error':'success');feNavigate(fePath,false)}
+  else if(a==='copy'){const d=await feModal('Copy to','Absolute destination path...',sel.path);if(!d)return;const r=await api('/api/files/copy',{method:'POST',headers:hdr,body:JSON.stringify({src:sel.path,dst:d})});toast(r.data?.message||r.error,r.error?'error':'success');feNavigate(fePath,false)}
+  else if(a==='move'){const d=await feModal('Move to','Absolute destination path...',sel.path);if(!d||d===sel.path)return;const r=await api('/api/files/move',{method:'POST',headers:hdr,body:JSON.stringify({src:sel.path,dst:d})});toast(r.data?.message||r.error,r.error?'error':'success');feNavigate(fePath,false)}
+  else if(a==='delete'){const c=await feModal('Delete '+sel.name+'?','Type "yes" to confirm','');if(c!=='yes'){toast('Cancelled','error');return}const r=await api('/api/files/delete',{method:'POST',headers:hdr,body:JSON.stringify({path:sel.path})});toast(r.data?.message||r.error,r.error?'error':'success');feNavigate(fePath,false)}
+}
+
+// Nav buttons
+$('fe-back-btn').addEventListener('click',()=>{if(feHistoryIdx>0){feHistoryIdx--;feNavigate(feHistory[feHistoryIdx],false)}});
+$('fe-fwd-btn').addEventListener('click',()=>{if(feHistoryIdx<feHistory.length-1){feHistoryIdx++;feNavigate(feHistory[feHistoryIdx],false)}});
+$('fe-up-btn').addEventListener('click',()=>{if(fePath&&fePath!=='/'){const parent=fePath.replace(/\/[^/]+\/?$/,'');feNavigate(parent||'/')}});
+$('fe-home-btn').addEventListener('click',()=>feNavigate('/home/animesh'));
+$('fe-root-btn').addEventListener('click',()=>feNavigate('/'));
+$('fe-refresh-btn').addEventListener('click',()=>feNavigate(fePath,false));
+$('fe-go-btn').addEventListener('click',()=>{const v=$('fe-path-input').value.trim();if(v)feNavigate(v)});
+$('fe-path-input').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=$('fe-path-input').value.trim();if(v)feNavigate(v)}});
+$('fe-mkdir-btn').addEventListener('click',async()=>{const n=await feModal('New Folder','Folder name...','');if(!n)return;const newPath=fePath+(fePath.endsWith('/')?'':'/')+n;const r=await api('/api/files/mkdir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:newPath})});toast(r.data?.message||r.error,r.error?'error':'success');feNavigate(fePath,false)});
+
+// ═══════════════ Data Refresh ═══════════════
+async function refreshFast(){
+  const[sys,containers,stats,torrents,transfer,counts,latest,sessions,procs,bw]=await Promise.allSettled([
+    api('/api/system'),api('/api/docker/containers'),api('/api/docker/stats'),
+    api('/api/qbit/torrents/info'),api('/api/qbit/transfer/info'),
+    api('/api/jellyfin/items/counts'),api('/api/jellyfin/items/latest'),api('/api/jellyfin/sessions'),
+    api('/api/processes'),api('/api/bandwidth/history'),
+  ]);
+  const v=r=>r.status==='fulfilled'?r.value.data:null;
+  D.sys=v(sys);D.containers=v(containers);D.stats=v(stats);D.torrents=v(torrents);D.transfer=v(transfer);D.counts=v(counts);D.latest=v(latest);D.sessions=v(sessions);D.procs=v(procs);D.bw=v(bw);
+  renderOverview();renderSys();drawBW(D.bw);renderDocker();renderTorrents();renderMedia();renderProcs();renderWeather();
+}
+async function refreshSlow(){
+  const[storage,weather]=await Promise.allSettled([api('/api/storage'),api('/api/weather')]);
+  const v=r=>r.status==='fulfilled'?r.value.data:null;
+  D.storage=v(storage);D.weather=v(weather);
+  renderStorage();renderWeather();renderOverview();
+}
+
+// ═══════════════ Boot ═══════════════
+refreshFast();refreshSlow();
+setInterval(refreshFast,5000);
+setInterval(refreshSlow,300000);
+</script>
+</body>
+</html>

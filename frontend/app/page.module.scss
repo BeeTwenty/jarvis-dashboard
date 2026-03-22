@@ -1,0 +1,163 @@
+@use '../styles/variables' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-lg;
+
+  @include tablet { grid-template-columns: repeat(2, 1fr); }
+  @include mobile { grid-template-columns: 1fr; }
+}
+
+.cardIcon {
+  position: absolute;
+  top: $space-lg;
+  right: $space-lg;
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  transition: opacity $duration-normal, transform $duration-normal $ease-spring;
+
+  .metric-card:hover & {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+.arrow {
+  position: absolute;
+  bottom: $space-lg;
+  right: $space-lg;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity $duration-normal, transform $duration-normal $ease-smooth;
+
+  .metric-card:hover & {
+    opacity: 0.5;
+    transform: translateX(0);
+  }
+}
+
+.gaugeRow {
+  display: flex;
+  gap: $space-xl;
+  justify-content: center;
+  margin-top: $space-md;
+}
+
+.miniGauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-xs;
+  transition: transform $duration-normal $ease-spring;
+
+  &:hover { transform: scale(1.08); }
+}
+
+.miniLabel {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $space-md;
+}
+
+.stoppedList {
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+}
+
+.stoppedItem {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  font-size: $text-sm;
+  color: var(--text-secondary);
+}
+
+.redDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $red;
+  box-shadow: 0 0 6px rgba($red, 0.4);
+  flex-shrink: 0;
+}
+
+.allGood {
+  font-size: $text-sm;
+  color: $green;
+  font-weight: 500;
+}
+
+.mediaStats {
+  display: flex;
+  gap: $space-2xl;
+  margin-top: $space-sm;
+}
+
+.statNum {
+  font-size: $text-xl;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: $font-rounded;
+  transition: color $duration-fast;
+}
+
+.statLabel {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.netRow {
+  display: flex;
+  gap: $space-2xl;
+  margin-top: $space-md;
+}
+
+.netItem {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  font-size: $text-lg;
+  font-weight: 600;
+  font-family: $font-mono;
+  color: var(--text-primary);
+}
+
+.netArrowDown { font-size: $text-xl; font-weight: 700; color: $green; }
+.netArrowUp { font-size: $text-xl; font-weight: 700; color: $blue; }
+
+.weatherCard { cursor: default !important; &:hover { transform: none !important; } }
+
+.tempRow {
+  display: flex;
+  align-items: baseline;
+  gap: $space-md;
+  margin-top: $space-xs;
+}
+
+.tempValue {
+  font-size: $text-4xl;
+  font-weight: 700;
+  font-family: $font-rounded;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+}
+
+.tempCondition {
+  font-size: $text-base;
+  color: var(--text-secondary);
+}

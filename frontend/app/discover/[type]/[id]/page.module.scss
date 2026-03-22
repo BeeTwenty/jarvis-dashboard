@@ -1,0 +1,421 @@
+@use '../../../../styles/variables' as *;
+
+.detailPage {
+  max-width: $max-content;
+  margin: 0 auto;
+}
+
+// Hero section
+.hero {
+  position: relative;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  margin: $space-2xl;
+  background-size: cover;
+  background-position: center top;
+  background-color: var(--bg-tertiary);
+
+  @include mobile {
+    margin: $space-lg;
+    border-radius: $radius-md;
+  }
+}
+
+.heroOverlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.92) 0%,
+    rgba(0, 0, 0, 0.8) 50%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  padding: $space-2xl;
+
+  @include mobile {
+    background: rgba(0, 0, 0, 0.85);
+    padding: $space-lg;
+  }
+}
+
+.heroContent {
+  display: flex;
+  gap: $space-2xl;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.heroPoster {
+  width: 220px;
+  height: auto;
+  border-radius: $radius-md;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 160px;
+  }
+}
+
+.heroInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: $space-md;
+  min-width: 0;
+}
+
+.heroTitle {
+  font-size: $text-3xl;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #f5f5f7;
+  line-height: 1.2;
+
+  @include mobile {
+    font-size: $text-2xl;
+  }
+}
+
+.heroTagline {
+  font-size: $text-base;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.heroMeta {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  flex-wrap: wrap;
+
+  @include mobile {
+    justify-content: center;
+  }
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+  font-size: $text-sm;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.heroGenres {
+  display: flex;
+  gap: $space-xs;
+  flex-wrap: wrap;
+
+  @include mobile {
+    justify-content: center;
+  }
+}
+
+.heroDirector {
+  font-size: $text-sm;
+  color: rgba(255, 255, 255, 0.6);
+
+  strong {
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
+
+.heroActions {
+  display: flex;
+  gap: $space-sm;
+  margin-top: $space-sm;
+
+  @include mobile {
+    justify-content: center;
+  }
+}
+
+// Content sections
+.section {
+  padding: 0 $space-2xl $space-2xl;
+
+  @include mobile {
+    padding: 0 $space-lg $space-lg;
+  }
+}
+
+.overview {
+  font-size: $text-base;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 800px;
+}
+
+// Cast
+.castGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: $space-md;
+
+  @include mobile {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: $space-sm;
+  }
+}
+
+.castCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-xs;
+  text-align: center;
+}
+
+.castPhoto {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--glass-border);
+
+  @include mobile {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+.castPhotoPlaceholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+
+  @include mobile {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+.castName {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.castCharacter {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+// Similar grid
+.similarGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: $space-md;
+
+  @include mobile {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: $space-sm;
+  }
+}
+
+.similarCard {
+  @include card;
+  overflow: hidden;
+  transition: transform $duration-normal $ease-smooth, border-color $duration-normal, box-shadow $duration-normal;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--card-hover-border);
+    box-shadow: var(--glass-shadow-lg);
+  }
+}
+
+.similarPoster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.similarPosterPlaceholder {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.similarInfo {
+  padding: $space-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.similarTitle {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.similarMeta {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+}
+
+// Loading state
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-3xl;
+  color: var(--text-tertiary);
+  font-size: $text-base;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Torrent search modal (reused from discover page)
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xl;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.modal {
+  @include card;
+  width: 100%;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp $duration-normal $ease-smooth both;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-lg $space-xl;
+  border-bottom: 1px solid var(--subtle-border);
+
+  h3 {
+    font-size: $text-base;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-sm 0;
+}
+
+.torrentResult {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: 10px $space-xl;
+  border-bottom: 1px solid var(--row-border);
+  font-size: $text-sm;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--row-border); }
+}
+
+.torrentName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.torrentMeta {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.torrentSeeds {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: $green;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.addBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  &:hover {
+    background: rgba($green, 0.18) !important;
+    box-shadow: 0 2px 8px rgba($green, 0.15) !important;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}

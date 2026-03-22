@@ -1,0 +1,515 @@
+@use '../../styles/variables' as *;
+
+// Global search bar
+.globalSearchWrap {
+  position: relative;
+  margin-bottom: $space-2xl;
+}
+
+.globalSearchBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.globalSearchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.globalSearchInput {
+  width: 100%;
+  padding: 14px 44px 14px 48px !important;
+  font-size: $text-lg !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: $radius-md !important;
+  transition: border-color $duration-normal, box-shadow $duration-normal;
+
+  &:focus {
+    border-color: var(--blue) !important;
+    box-shadow: 0 0 0 3px rgba($blue, 0.15), var(--glass-shadow-lg) !important;
+  }
+}
+
+.globalClearBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color $duration-fast, background $duration-fast;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+}
+
+.globalResultsGrid {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: $space-xs;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-md;
+  box-shadow: var(--glass-shadow-lg);
+  z-index: 200;
+  max-height: 480px;
+  overflow-y: auto;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.globalResultCard {
+  display: flex;
+  gap: $space-md;
+  padding: $space-md $space-lg;
+  border-bottom: 1px solid var(--row-border);
+  text-decoration: none;
+  color: inherit;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-hover); }
+}
+
+.globalPoster {
+  width: 48px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: $radius-sm;
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+
+.globalPosterEmpty {
+  width: 48px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-sm;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+}
+
+.globalResultInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.globalResultTitle {
+  font-weight: 600;
+  font-size: $text-base;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.globalResultMeta {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+  flex-wrap: wrap;
+}
+
+.globalResultRating {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--orange);
+  font-weight: 600;
+
+  &::before {
+    content: '\2605 ';
+  }
+}
+
+.globalResultOverview {
+  font-size: $text-xs;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Tabs
+.tabs {
+  margin-bottom: $space-2xl;
+}
+
+// Mood grid
+.moodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: $space-md;
+  margin-bottom: $space-lg;
+
+  @include mobile {
+    grid-template-columns: repeat(3, 1fr);
+    gap: $space-sm;
+  }
+}
+
+.moodCard {
+  @include card;
+  @include card-interactive;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-xl $space-md;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  font-weight: 500;
+  transition: all $duration-normal $ease-smooth;
+
+  &:hover {
+    color: var(--mood-color, var(--blue));
+    border-color: var(--mood-color, var(--blue));
+    box-shadow: 0 0 20px rgba(var(--mood-color, $blue), 0.1);
+  }
+}
+
+.moodActive {
+  color: var(--mood-color, var(--blue)) !important;
+  border-color: var(--mood-color, var(--blue)) !important;
+  background: rgba(var(--mood-color, $blue), 0.06);
+  box-shadow: 0 0 24px rgba(var(--mood-color, $blue), 0.12) !important;
+}
+
+// Search bar (matching torrent page style)
+.searchBar {
+  display: flex;
+  gap: $space-sm;
+  margin-bottom: $space-lg;
+}
+
+.searchInputWrap {
+  flex: 1;
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-left: 38px !important;
+}
+
+// Autocomplete dropdown
+.acDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: $space-xs;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  box-shadow: var(--glass-shadow-lg);
+  z-index: 100;
+  overflow: hidden;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.acItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px $space-lg;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--row-border);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background $duration-fast;
+  text-align: left;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-hover); }
+}
+
+.acTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acMeta {
+  display: flex;
+  gap: $space-xs;
+  flex-shrink: 0;
+  margin-left: $space-sm;
+}
+
+// Library prompt
+.libraryPrompt {
+  @include card;
+  padding: $space-2xl;
+  text-align: center;
+  margin-bottom: $space-lg;
+}
+
+.libraryDesc {
+  color: var(--text-secondary);
+  font-size: $text-base;
+  margin-bottom: $space-lg;
+}
+
+.genreTags {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  flex-wrap: wrap;
+  margin-bottom: $space-lg;
+}
+
+.genreLabel {
+  font-size: $text-sm;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+// Recommendation grid
+.recGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $space-md;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Recommendation card
+.recCard {
+  @include card;
+  padding: $space-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  transition: border-color $duration-normal, transform $duration-normal $ease-smooth;
+
+  &:hover {
+    border-color: var(--card-hover-border);
+    transform: translateY(-2px);
+  }
+}
+
+.recHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-sm;
+}
+
+.recTitle {
+  font-weight: 600;
+  font-size: $text-base;
+  color: var(--text-primary);
+  flex: 1;
+  line-height: 1.3;
+}
+
+.recBadges {
+  display: flex;
+  gap: $space-xs;
+  flex-shrink: 0;
+}
+
+.recDesc {
+  font-size: $text-sm;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.recRating {
+  font-size: $text-xs;
+  font-family: $font-mono;
+  color: var(--orange);
+}
+
+.recActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: $space-sm;
+}
+
+.torrentBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  &:hover {
+    background: rgba($green, 0.18) !important;
+    box-shadow: 0 2px 8px rgba($green, 0.15) !important;
+  }
+}
+
+// Loading state
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-3xl;
+  color: var(--text-tertiary);
+  font-size: $text-base;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Torrent search modal
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xl;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.modal {
+  @include card;
+  width: 100%;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp $duration-normal $ease-smooth both;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-lg $space-xl;
+  border-bottom: 1px solid var(--subtle-border);
+
+  h3 {
+    font-size: $text-base;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-sm 0;
+}
+
+// Torrent results (reusing torrent page patterns)
+.torrentResult {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: 10px $space-xl;
+  border-bottom: 1px solid var(--row-border);
+  font-size: $text-sm;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--row-border); }
+}
+
+.torrentName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.torrentMeta {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.torrentSeeds {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: $green;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.addBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  &:hover {
+    background: rgba($green, 0.18) !important;
+    box-shadow: 0 2px 8px rgba($green, 0.15) !important;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}

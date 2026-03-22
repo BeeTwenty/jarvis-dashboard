@@ -1,0 +1,80 @@
+@use '../../styles/variables' as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: $space-lg;
+}
+
+.container {
+  @include card;
+  padding: $space-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  transition: transform $duration-normal $ease-smooth, box-shadow $duration-normal, border-color $duration-normal;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--glass-shadow-lg);
+    border-color: var(--card-interactive-hover-border);
+  }
+}
+
+.containerTop {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+}
+
+.containerName {
+  font-size: $text-base;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: $font-sans;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  flex: 1;
+  transition: color $duration-fast;
+
+  &:hover { color: $blue; }
+}
+
+.logBtn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: $space-xs;
+  border-radius: 6px;
+  transition: all $duration-fast;
+  opacity: 0;
+  .container:hover & { opacity: 1; }
+  &:hover { background: var(--btn-secondary-bg); color: var(--text-primary); }
+}
+
+.containerStatus {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+}
+
+.statsRow {
+  display: flex;
+  gap: $space-md;
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  strong { color: var(--text-primary); font-weight: 500; }
+}
+
+.containerActions {
+  display: flex;
+  gap: $space-xs;
+  margin-top: $space-xs;
+}

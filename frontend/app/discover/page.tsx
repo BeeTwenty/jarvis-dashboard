@@ -1,0 +1,545 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import Link from 'next/link'
+import { api, fmtBytes } from '@/lib/api'
+import { toast } from '@/lib/toast'
+import {
+  Sparkles, Search, Library, TrendingUp, Plus, Film, Tv,
+  Heart, Zap, Brain, Sofa, Skull, Laugh, Drama, Swords,
+  Rocket, Ghost, Clapperboard, Palette, ArrowUp, ArrowDown, X, Loader2
+} from 'lucide-react'
+import styles from './page.module.scss'
+
+interface Recommendation {
+  title: string
+  year: string
+  type: string
+  description: string
+  rating: string
+  poster: string
+  torrent_query: string
+  tmdb_id?: string
+}
+
+interface AutocompleteResult {
+  title: string
+  year: string
+  tmdb_id: string
+  type: string
+}
+
+interface SearchResult {
+  title: string
+  year: string
+  tmdb_id: string
+  type: string
+  poster: string
+  rating: number
+  overview: string
+}
+
+const MOODS = [
+  { id: 'feel-good', label: 'Feel Good', icon: Heart, color: '#ff375f' },
+  { id: 'thriller', label: 'Thriller', icon: Zap, color: '#ff9f0a' },
+  { id: 'mind-bending', label: 'Mind-Bending', icon: Brain, color: '#bf5af2' },
+  { id: 'comfort', label: 'Comfort', icon: Sofa, color: '#64d2ff' },
+  { id: 'dark', label: 'Dark', icon: Skull, color: '#636366' },
+  { id: 'funny', label: 'Funny', icon: Laugh, color: '#ffd60a' },
+  { id: 'romantic', label: 'Romantic', icon: Drama, color: '#ff375f' },
+  { id: 'action-packed', label: 'Action', icon: Swords, color: '#ff453a' },
+  { id: 'sci-fi', label: 'Sci-Fi', icon: Rocket, color: '#0a84ff' },
+  { id: 'horror', label: 'Horror', icon: Ghost, color: '#30d158' },
+  { id: 'documentary', label: 'Documentary', icon: Clapperboard, color: '#ff9f0a' },
+  { id: 'animated', label: 'Animated', icon: Palette, color: '#5e5ce6' },
+]
+
+function getDetailHref(rec: Recommendation): string | null {
+  if (!rec.tmdb_id) return null
+  const type = rec.type === 'series' ? 'tv' : rec.type === 'tv' ? 'tv' : 'movie'
+  return `/discover/${type}/${rec.tmdb_id}`
+}
+
+function RecommendationCard({ rec, onAddTorrent }: { rec: Recommendation; onAddTorrent: (query: string) => void }) {
+  const href = getDetailHref(rec)
+  const cardContent = (
+    <>
+      <div className={styles.recHeader}>
+        <span className={styles.recTitle}>{rec.title}</span>
+        <div className={styles.recBadges}>
+          {rec.year && <span className="badge gray">{rec.year}</span>}
+          <span className={`badge ${rec.type === 'series' || rec.type === 'tv' ? 'purple' : 'blue'}`}>
+            {rec.type === 'series' || rec.type === 'tv' ? <><Tv size={10} /> Series</> : <><Film size={10} /> Movie</>}
+          </span>
+        </div>
+      </div>
+      {rec.description && <div className={styles.recDesc}>{rec.description}</div>}
+      {rec.rating && <div className={styles.recRating}>Rating: {rec.rating}</div>}
+      <div className={styles.recActions}>
+        <button
+          className={`btn btn-sm ${styles.torrentBtn}`}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddTorrent(rec.torrent_query) }}
+        >
+          <Plus size={12} /> Find Torrent
+        </button>
+      </div>
+    </>
+  )
+
+  if (href) {
+    return (
+      <Link href={href} className={styles.recCard} style={{ textDecoration: 'none', color: 'inherit' }}>
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return <div className={styles.recCard}>{cardContent}</div>
+}
+
+function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => void }) {
+  const [results, setResults] = useState<any[] | null>(null)
+  const [searching, setSearching] = useState(true)
+
+  useEffect(() => {
+    async function search() {
+      setSearching(true)
+      const r = await api(`/api/torrent-search?q=${encodeURIComponent(query)}`)
+      setSearching(false)
+      if (r.error || !Array.isArray(r.data)) {
+        setResults([])
+      } else {
+        setResults(r.data)
+      }
+    }
+    search()
+  }, [query])
+
+  async function addTorrent(hash: string, name: string) {
+    const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(name)}`
+    const r = await api('/api/torrent-add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ magnet }),
+    })
+    toast(r.error ? r.error : `Added: ${name.substring(0, 50)}`, r.error ? 'error' : 'success')
+    onClose()
+  }
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Torrents for: {query}</h3>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className={styles.modalBody}>
+          {searching ? (
+            <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Searching...</div>
+          ) : results && results.length === 0 ? (
+            <div className="empty-state" style={{ padding: 16 }}>No torrents found</div>
+          ) : results && (
+            <div className="stagger-children">
+              {results.map((r, i) => (
+                <div key={i} className={styles.torrentResult}>
+                  <span className={styles.torrentName} title={r.name}>{r.name}</span>
+                  <span className={styles.torrentMeta}>{fmtBytes(r.size)}</span>
+                  <span className={styles.torrentSeeds}><ArrowUp size={10} />{r.seeders}</span>
+                  <span className={styles.torrentMeta}><ArrowDown size={10} />{r.leechers}</span>
+                  <button className={`btn btn-sm ${styles.addBtn}`} onClick={() => addTorrent(r.info_hash, r.name)}>
+                    <Plus size={12} /> Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function DiscoverPage() {
+  const [activeTab, setActiveTab] = useState<'mood' | 'similar' | 'library' | 'trending'>('mood')
+  const [selectedMood, setSelectedMood] = useState<string | null>(null)
+  const [moodResults, setMoodResults] = useState<Recommendation[]>([])
+  const [similarQuery, setSimilarQuery] = useState('')
+  const [similarResults, setSimilarResults] = useState<Recommendation[]>([])
+  const [libraryResults, setLibraryResults] = useState<Recommendation[]>([])
+  const [libraryGenres, setLibraryGenres] = useState<string[]>([])
+  const [trendingResults, setTrendingResults] = useState<Recommendation[]>([])
+  const [loading, setLoading] = useState(false)
+  const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
+
+  // Global search state
+  const [globalQuery, setGlobalQuery] = useState('')
+  const [globalResults, setGlobalResults] = useState<SearchResult[]>([])
+  const [globalSearching, setGlobalSearching] = useState(false)
+  const globalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const globalWrapRef = useRef<HTMLDivElement>(null)
+
+  // Autocomplete state
+  const [acResults, setAcResults] = useState<AutocompleteResult[]>([])
+  const [acOpen, setAcOpen] = useState(false)
+  const acTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const acWrapRef = useRef<HTMLDivElement>(null)
+
+  // Auto-load trending on mount
+  useEffect(() => {
+    loadTrending()
+  }, [])
+
+  // Close autocomplete / global search on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (acWrapRef.current && !acWrapRef.current.contains(e.target as Node)) {
+        setAcOpen(false)
+      }
+      if (globalWrapRef.current && !globalWrapRef.current.contains(e.target as Node)) {
+        setGlobalResults([])
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  function handleGlobalSearch(value: string) {
+    setGlobalQuery(value)
+    if (globalTimerRef.current) clearTimeout(globalTimerRef.current)
+    if (value.trim().length < 2) {
+      setGlobalResults([])
+      setGlobalSearching(false)
+      return
+    }
+    setGlobalSearching(true)
+    globalTimerRef.current = setTimeout(async () => {
+      const r = await api<{ results: SearchResult[] }>(`/api/recommendations/search?q=${encodeURIComponent(value.trim())}`)
+      setGlobalSearching(false)
+      if (r.data && r.data.results) {
+        setGlobalResults(r.data.results)
+      } else {
+        setGlobalResults([])
+      }
+    }, 400)
+  }
+
+  function handleSimilarInputChange(value: string) {
+    setSimilarQuery(value)
+    if (acTimerRef.current) clearTimeout(acTimerRef.current)
+    if (value.trim().length < 2) {
+      setAcResults([])
+      setAcOpen(false)
+      return
+    }
+    acTimerRef.current = setTimeout(async () => {
+      const r = await api<{ results: AutocompleteResult[] }>(`/api/recommendations/autocomplete?q=${encodeURIComponent(value.trim())}`)
+      if (r.data && r.data.results) {
+        setAcResults(r.data.results)
+        setAcOpen(r.data.results.length > 0)
+      } else {
+        setAcResults([])
+        setAcOpen(false)
+      }
+    }, 300)
+  }
+
+  function handleAcSelect(item: AutocompleteResult) {
+    setSimilarQuery(item.title)
+    setAcOpen(false)
+    // Trigger search with selected title
+    setLoading(true)
+    api<{ query: string; results: Recommendation[] }>(`/api/recommendations/similar?title=${encodeURIComponent(item.title)}`)
+      .then(r => {
+        setLoading(false)
+        if (r.data && r.data.results) {
+          setSimilarResults(r.data.results)
+        } else {
+          setSimilarResults([])
+          toast(r.error || 'No similar titles found', 'error')
+        }
+      })
+  }
+
+  async function loadMood(mood: string) {
+    setSelectedMood(mood)
+    setLoading(true)
+    const r = await api<{ mood: string; results: Recommendation[] }>(`/api/recommendations/mood?mood=${encodeURIComponent(mood)}`)
+    setLoading(false)
+    if (r.data && r.data.results) {
+      setMoodResults(r.data.results)
+    } else {
+      setMoodResults([])
+      toast(r.error || 'No recommendations found', 'error')
+    }
+  }
+
+  async function searchSimilar() {
+    if (!similarQuery.trim()) return
+    setAcOpen(false)
+    setLoading(true)
+    const r = await api<{ query: string; results: Recommendation[] }>(`/api/recommendations/similar?title=${encodeURIComponent(similarQuery.trim())}`)
+    setLoading(false)
+    if (r.data && r.data.results) {
+      setSimilarResults(r.data.results)
+    } else {
+      setSimilarResults([])
+      toast(r.error || 'No similar titles found', 'error')
+    }
+  }
+
+  async function loadLibrary() {
+    setLoading(true)
+    const r = await api<{ genres: string[]; library_count: number; results: Recommendation[] }>('/api/recommendations/library')
+    setLoading(false)
+    if (r.data && r.data.results) {
+      setLibraryResults(r.data.results)
+      setLibraryGenres(r.data.genres || [])
+    } else {
+      setLibraryResults([])
+      toast(r.error || 'Could not analyze library', 'error')
+    }
+  }
+
+  const loadTrending = useCallback(async () => {
+    const r = await api<{ results: Recommendation[] }>('/api/recommendations/trending')
+    if (r.data && r.data.results) {
+      setTrendingResults(r.data.results)
+    }
+  }, [])
+
+  function handleAddTorrent(query: string) {
+    setTorrentQuery(query)
+  }
+
+  return (
+    <>
+      <header className="page-header">
+        <h1 className="page-title">Discover</h1>
+        <div className="page-meta">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Sparkles size={14} /> Movie & Series Recommendations</span>
+        </div>
+      </header>
+
+      <div className="page-body">
+        {/* Global search bar */}
+        <div className={styles.globalSearchWrap} ref={globalWrapRef}>
+          <div className={styles.globalSearchBar}>
+            <Search size={20} className={styles.globalSearchIcon} />
+            <input
+              type="text"
+              className={`input ${styles.globalSearchInput}`}
+              placeholder="Search any movie or series..."
+              value={globalQuery}
+              onChange={e => handleGlobalSearch(e.target.value)}
+            />
+            {globalSearching && <Loader2 size={16} className={styles.spinner} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />}
+            {globalQuery && !globalSearching && (
+              <button
+                className={styles.globalClearBtn}
+                onClick={() => { setGlobalQuery(''); setGlobalResults([]) }}
+              ><X size={14} /></button>
+            )}
+          </div>
+          {globalResults.length > 0 && (
+            <div className={styles.globalResultsGrid}>
+              {globalResults.map((item, i) => {
+                const href = `/discover/${item.type === 'series' ? 'tv' : 'movie'}/${item.tmdb_id}`
+                return (
+                  <Link
+                    key={i}
+                    href={href}
+                    className={styles.globalResultCard}
+                    onClick={() => { setGlobalResults([]); setGlobalQuery('') }}
+                  >
+                    {item.poster ? (
+                      <img src={item.poster} alt={item.title} className={styles.globalPoster} />
+                    ) : (
+                      <div className={styles.globalPosterEmpty}><Film size={20} /></div>
+                    )}
+                    <div className={styles.globalResultInfo}>
+                      <span className={styles.globalResultTitle}>{item.title}</span>
+                      <div className={styles.globalResultMeta}>
+                        {item.year && <span className="badge gray">{item.year}</span>}
+                        <span className={`badge ${item.type === 'series' ? 'purple' : 'blue'}`}>
+                          {item.type === 'series' ? 'TV' : 'Movie'}
+                        </span>
+                        {item.rating > 0 && <span className={styles.globalResultRating}>{item.rating.toFixed(1)}</span>}
+                      </div>
+                      {item.overview && <span className={styles.globalResultOverview}>{item.overview}</span>}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Tab selector */}
+        <div className={styles.tabs}>
+          <div className="segment-control">
+            {[
+              { id: 'mood' as const, label: 'By Mood', icon: Heart },
+              { id: 'similar' as const, label: 'Similar To...', icon: Search },
+              { id: 'library' as const, label: 'From Library', icon: Library },
+              { id: 'trending' as const, label: 'Trending', icon: TrendingUp },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                className={`segment-btn ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <tab.icon size={14} style={{ marginRight: 4, verticalAlign: -2 }} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mood-based picker */}
+        {activeTab === 'mood' && (
+          <div className="section">
+            <div className={styles.moodGrid}>
+              {MOODS.map(mood => (
+                <button
+                  key={mood.id}
+                  className={`${styles.moodCard} ${selectedMood === mood.id ? styles.moodActive : ''}`}
+                  onClick={() => loadMood(mood.id)}
+                  style={{ '--mood-color': mood.color } as React.CSSProperties}
+                >
+                  <mood.icon size={24} strokeWidth={1.5} />
+                  <span>{mood.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {loading && (
+              <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Finding recommendations...</div>
+            )}
+
+            {!loading && moodResults.length > 0 && (
+              <>
+                <h3 className="section-title" style={{ marginTop: 24 }}>
+                  {MOODS.find(m => m.id === selectedMood)?.label} Recommendations
+                </h3>
+                <div className={`${styles.recGrid} stagger-children`}>
+                  {moodResults.map((rec, i) => (
+                    <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Similar To search */}
+        {activeTab === 'similar' && (
+          <div className="section">
+            <div className={styles.searchBar}>
+              <div className={styles.searchInputWrap} ref={acWrapRef}>
+                <Search size={16} className={styles.searchIcon} />
+                <input
+                  type="text"
+                  className={`input ${styles.searchInput}`}
+                  placeholder="Enter a movie or series name..."
+                  value={similarQuery}
+                  onChange={e => handleSimilarInputChange(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { setAcOpen(false); searchSimilar() } }}
+                  onFocus={() => { if (acResults.length > 0) setAcOpen(true) }}
+                />
+                {acOpen && acResults.length > 0 && (
+                  <div className={styles.acDropdown}>
+                    {acResults.map((item, i) => (
+                      <button
+                        key={i}
+                        className={styles.acItem}
+                        onClick={() => handleAcSelect(item)}
+                      >
+                        <span className={styles.acTitle}>{item.title}</span>
+                        <span className={styles.acMeta}>
+                          {item.year && <span className="badge gray">{item.year}</span>}
+                          <span className={`badge ${item.type === 'series' || item.type === 'tv' ? 'purple' : 'blue'}`}>
+                            {item.type === 'series' || item.type === 'tv' ? 'TV' : 'Movie'}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-primary" onClick={() => { setAcOpen(false); searchSimilar() }} disabled={loading}>
+                {loading ? 'Searching...' : 'Find Similar'}
+              </button>
+            </div>
+
+            {loading && (
+              <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Searching Reddit for similar titles...</div>
+            )}
+
+            {!loading && similarResults.length > 0 && (
+              <div className={`${styles.recGrid} stagger-children`}>
+                {similarResults.map((rec, i) => (
+                  <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                ))}
+              </div>
+            )}
+
+            {!loading && similarResults.length === 0 && similarQuery && (
+              <div className="empty-state">Search for a title to find similar movies and series</div>
+            )}
+          </div>
+        )}
+
+        {/* From Library */}
+        {activeTab === 'library' && (
+          <div className="section">
+            <div className={styles.libraryPrompt}>
+              <p className={styles.libraryDesc}>
+                Analyze your Jellyfin library to discover new movies and series based on what you already enjoy.
+              </p>
+              <button className="btn btn-primary" onClick={loadLibrary} disabled={loading}>
+                {loading ? <><Loader2 size={14} className={styles.spinner} /> Analyzing...</> : <><Library size={14} /> Analyze My Library</>}
+              </button>
+            </div>
+
+            {libraryGenres.length > 0 && (
+              <div className={styles.genreTags}>
+                <span className={styles.genreLabel}>Your top genres:</span>
+                {libraryGenres.map(g => (
+                  <span key={g} className="badge blue">{g}</span>
+                ))}
+              </div>
+            )}
+
+            {!loading && libraryResults.length > 0 && (
+              <div className={`${styles.recGrid} stagger-children`}>
+                {libraryResults.map((rec, i) => (
+                  <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Trending */}
+        {activeTab === 'trending' && (
+          <div className="section">
+            {trendingResults.length === 0 ? (
+              <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading trending...</div>
+            ) : (
+              <div className={`${styles.recGrid} stagger-children`}>
+                {trendingResults.map((rec, i) => (
+                  <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Torrent search modal */}
+      {torrentQuery && (
+        <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} />
+      )}
+    </>
+  )
+}
