@@ -131,7 +131,7 @@ export default function MovieDetailPage() {
   const [seasons, setSeasons] = useState<any[]>([])
   const [loadingSeasons, setLoadingSeasons] = useState(false)
   const [expandedSeason, setExpandedSeason] = useState<number | null>(null)
-  const [libraryInfo, setLibraryInfo] = useState<{ in_library: boolean; jellyfin_url?: string } | null>(null)
+  const [libraryInfo, setLibraryInfo] = useState<{ in_library: boolean; jellyfin_id?: string } | null>(null)
 
   const type = params.type as string
   const id = params.id as string
@@ -144,7 +144,7 @@ export default function MovieDetailPage() {
       if (r.data && !r.data.error) {
         setDetail(r.data)
         // Check if in Jellyfin library
-        const lib = await api<{ in_library: boolean; jellyfin_url?: string }>(
+        const lib = await api<{ in_library: boolean; jellyfin_id?: string }>(
           `/api/jellyfin-media/library-check?tmdb_id=${id}&media_type=${type}`
         )
         if (lib.data) setLibraryInfo(lib.data)
@@ -254,8 +254,13 @@ export default function MovieDetailPage() {
                   <div className={styles.heroDirector}>Directed by <strong>{detail.director}</strong></div>
                 )}
                 <div className={styles.heroActions}>
-                  {libraryInfo?.in_library && libraryInfo.jellyfin_url && (
-                    <a href={libraryInfo.jellyfin_url} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
+                  {libraryInfo?.in_library && libraryInfo.jellyfin_id && (
+                    <a href={(() => {
+                      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+                      const webUrl = `/api/jellyfin-media/play/${libraryInfo.jellyfin_id}`
+                      if (isMobile) return `intent://items/${libraryInfo.jellyfin_id}#Intent;scheme=jellyfin;package=org.jellyfin.mobile;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+                      return webUrl
+                    })()} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
                       <Play size={14} /> Play on Jellyfin
                     </a>
                   )}

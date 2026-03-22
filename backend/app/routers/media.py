@@ -31,8 +31,8 @@ def _poster_url(item_id: str, tag: str = "", max_height: int = 300) -> str:
     return f"/api/jellyfin-media/poster/{item_id}?maxHeight={max_height}&tag={tag}"
 
 
-def _jellyfin_web_url(item_id: str) -> str:
-    return f"/api/jellyfin-media/play/{item_id}"
+def _jellyfin_play_id(item_id: str) -> str:
+    return item_id
 
 
 def _item_to_dict(item: dict, user_id: str = "") -> dict:
@@ -63,7 +63,7 @@ def _item_to_dict(item: dict, user_id: str = "") -> dict:
         "favorite": item.get("UserData", {}).get("IsFavorite", False),
         "tmdb_id": providers.get("Tmdb", ""),
         "imdb_id": providers.get("Imdb", ""),
-        "jellyfin_url": _jellyfin_web_url(item["Id"]),
+        "jellyfin_id": _jellyfin_play_id(item["Id"]),
         "season_count": item.get("ChildCount"),
     }
 
@@ -186,7 +186,7 @@ def media_overview():
                     "progress": round(pos / total * 100),
                     "poster": poster,
                     "is_paused": s.get("PlayState", {}).get("IsPaused", False),
-                    "jellyfin_url": _jellyfin_web_url(np["Id"]),
+                    "jellyfin_id": _jellyfin_play_id(np["Id"]),
                 })
     result["now_playing"] = now_playing
 
@@ -212,7 +212,7 @@ def media_overview():
                 "overview": (item.get("Overview") or "")[:150],
                 "runtime_min": round(item.get("RunTimeTicks", 0) / 600000000),
                 "poster": poster,
-                "jellyfin_url": _jellyfin_web_url(item["Id"]),
+                "jellyfin_id": _jellyfin_play_id(item["Id"]),
             })
     result["next_up"] = next_episodes
 

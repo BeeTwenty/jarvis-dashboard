@@ -14,20 +14,31 @@ interface LibItem {
   rating: number | null; official_rating: string; runtime_min: number | null;
   genres: string[]; overview: string; poster: string;
   played: boolean; favorite: boolean; tmdb_id: string;
-  jellyfin_url: string; season_count: number | null;
+  jellyfin_id: string; season_count: number | null;
   progress: number | null; episode_title?: string; date_played?: string;
 }
 
 interface NowPlaying {
   user: string; client: string; device: string; title: string;
   type: string; progress: number; poster: string; is_paused: boolean;
-  jellyfin_url: string;
+  jellyfin_id: string;
 }
 
 interface NextUp {
   id: string; series_name: string; season: number; episode: number;
   name: string; overview: string; runtime_min: number; poster: string;
-  jellyfin_url: string;
+  jellyfin_id: string;
+}
+
+function jellyfinPlayUrl(jellyfinId: string): string {
+  // On mobile, use intent URL to open Jellyfin app; falls back to browser
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+  const webUrl = `/api/jellyfin-media/play/${jellyfinId}`
+  if (isMobile) {
+    // Android intent: tries Jellyfin app first, falls back to web
+    return `intent://items/${jellyfinId}#Intent;scheme=jellyfin;package=org.jellyfin.mobile;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+  }
+  return webUrl
 }
 
 interface MediaOverview {
@@ -163,9 +174,9 @@ function PosterCard({ item, showProgress, subtitle }: { item: LibItem; showProgr
           <div className={styles.ratingBadge}><Star size={9} /> {item.rating.toFixed(1)}</div>
         )}
       </Link>
-      <a href={item.jellyfin_url} target="_blank" rel="noopener" className={styles.posterTitle}>
+      <Link href={detailHref} className={styles.posterTitle}>
         {item.name}
-      </a>
+      </Link>
       <span className={styles.posterMeta}>
         {subtitle || (showProgress && item.progress != null ? `${item.progress}%` : item.year)}
       </span>
@@ -264,7 +275,7 @@ export default function MediaPage() {
             <h3 className="section-title"><MonitorPlay size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Now Playing</h3>
             <div className={styles.npList}>
               {now_playing.map((s, i) => (
-                <a key={i} href={s.jellyfin_url} target="_blank" rel="noopener" className={styles.npCard}>
+                <a key={i} href={jellyfinPlayUrl(s.jellyfin_id)} target="_blank" rel="noopener" className={styles.npCard}>
                   {s.poster ? (
                     <img src={s.poster} alt={s.title} className={styles.npPoster} />
                   ) : (
@@ -306,7 +317,7 @@ export default function MediaPage() {
             <ScrollRow>
               {next_up.map((item, i) => (
                 <div key={i} className={styles.posterCard}>
-                  <a href={item.jellyfin_url} target="_blank" rel="noopener" className={styles.posterWrap}>
+                  <a href={jellyfinPlayUrl(item.jellyfin_id)} target="_blank" rel="noopener" className={styles.posterWrap}>
                     {item.poster ? (
                       <img src={item.poster} alt={item.name} className={styles.posterImg} loading="lazy" />
                     ) : (
