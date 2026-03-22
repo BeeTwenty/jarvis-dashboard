@@ -4,13 +4,13 @@ import { useState, memo } from 'react'
 import { useData } from '@/lib/DataContext'
 import { api, fmtBytes, fmtSpeed, fmtETA } from '@/lib/api'
 import { toast } from '@/lib/toast'
-import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock } from 'lucide-react'
+import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock, Trash2 } from 'lucide-react'
 import styles from './page.module.scss'
 
-const TorrentItem = memo(function TorrentItem({ t, onToggle }: { t: any; onToggle: (hash: string, paused: boolean) => void }) {
+const TorrentItem = memo(function TorrentItem({ t, onToggle, onRemove }: { t: any; onToggle: (hash: string, paused: boolean) => void; onRemove: (hash: string, name: string) => void }) {
   const pct = Math.round((t.progress || 0) * 100)
   const cat = t.category || ''
-  const isPaused = t.state?.startsWith('paused')
+  const isPaused = t.state?.startsWith('paused') || t.state?.startsWith('stopped')
 
   function getCatClass(c: string) {
     const lc = c.toLowerCase()
@@ -36,6 +36,9 @@ const TorrentItem = memo(function TorrentItem({ t, onToggle }: { t: any; onToggl
         <button className="btn btn-ghost btn-sm" onClick={() => onToggle(t.hash, isPaused)}>
           {isPaused ? <><Play size={12} /> Resume</> : <><Pause size={12} /> Pause</>}
         </button>
+        <button className={`btn btn-ghost btn-sm ${styles.removeBtn}`} onClick={() => onRemove(t.hash, t.name)}>
+          <Trash2 size={12} />
+        </button>
       </div>
       <div className={styles.torrentBottom}>
         <span className={styles.pctLabel}>{pct}%</span>
@@ -57,6 +60,8 @@ export default function TorrentsPage() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<any[] | null>(null)
   const [searching, setSearching] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<{ hash: string; name: string } | null>(null)
+  const [deleteFiles, setDeleteFiles] = useState(false)
 
   const sorted = Array.isArray(torrents)
     ? [...torrents].sort((a, b) => {
@@ -88,7 +93,24 @@ export default function TorrentsPage() {
   }
 
   async function toggleTorrent(hash: string, isPaused: boolean) {
-    await api(`/api/qbit/torrents/${isPaused ? 'resume' : 'pause'}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `hashes=${hash}` })
+    await api(`/api/qbit/torrents/${isPaused ? 'start' : 'stop'}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `hashes=${hash}` })
+    setTimeout(refreshFast, 800)
+  }
+
+  function promptRemove(hash: string, name: string) {
+    setRemoveTarget({ hash, name })
+    setDeleteFiles(false)
+  }
+
+  async function confirmRemove() {
+    if (!removeTarget) return
+    const r = await api(`/api/qbit/torrents/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `hashes=${removeTarget.hash}&deleteFiles=${deleteFiles}`,
+    })
+    toast(r.error ? r.error : `Removed: ${removeTarget.name.substring(0, 50)}`, r.error ? 'error' : 'success')
+    setRemoveTarget(null)
     setTimeout(refreshFast, 800)
   }
 
@@ -146,11 +168,43 @@ export default function TorrentsPage() {
         <div className="section">
           {sorted.length === 0 ? <div className="empty-state">No active torrents</div> : (
             <div className={`${styles.list} stagger-children`}>
-              {sorted.map(t => <TorrentItem key={t.hash} t={t} onToggle={toggleTorrent} />)}
+              {sorted.map(t => <TorrentItem key={t.hash} t={t} onToggle={toggleTorrent} onRemove={promptRemove} />)}
             </div>
           )}
         </div>
       </div>
+
+      {removeTarget && (
+        <div className={styles.modalOverlay} onClick={() => setRemoveTarget(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>Remove Torrent</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setRemoveTarget(null)}><X size={16} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              <p className={styles.modalText}>
+                Remove <strong>{removeTarget.name}</strong>?
+              </p>
+              <label className={styles.deleteToggle}>
+                <input type="checkbox" checked={deleteFiles} onChange={e => setDeleteFiles(e.target.checked)} />
+                <span className={styles.toggleTrack}>
+                  <span className={styles.toggleThumb} />
+                </span>
+                <span className={styles.toggleLabel}>Also delete downloaded files</span>
+              </label>
+              {deleteFiles && (
+                <p className={styles.deleteWarning}>Downloaded files will be permanently deleted.</p>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button className="btn btn-ghost" onClick={() => setRemoveTarget(null)}>Cancel</button>
+              <button className={`btn ${deleteFiles ? 'btn-danger' : 'btn-primary'}`} onClick={confirmRemove}>
+                <Trash2 size={14} /> {deleteFiles ? 'Remove & Delete Files' : 'Remove Torrent'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

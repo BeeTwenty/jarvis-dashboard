@@ -48,7 +48,15 @@
   &:hover { background: rgba($green, 0.18) !important; box-shadow: 0 2px 8px rgba($green, 0.15) !important; }
 }
 
-.list { display: flex; flex-direction: column; gap: $space-sm; }
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+
+  @include mobile {
+    padding-bottom: 80px;
+  }
+}
 
 .torrent {
   @include card;
@@ -57,15 +65,29 @@
   flex-direction: column;
   gap: $space-sm;
   transition: border-color $duration-normal, transform $duration-normal $ease-smooth;
+  overflow: hidden;
+  min-width: 0;
 
   &:hover {
     border-color: var(--card-hover-border);
     transform: translateX(2px);
   }
+
+  @include mobile {
+    padding: $space-md $space-lg;
+  }
 }
 
-.torrentTop { display: flex; align-items: center; gap: $space-sm; }
-.torrentName { flex: 1; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.torrentTop { display: flex; align-items: center; gap: $space-sm; min-width: 0; }
+.torrentName {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 
 .torrentBottom {
   display: flex;
@@ -74,6 +96,12 @@
   font-family: $font-mono;
   font-size: $text-xs;
   color: var(--text-tertiary);
+  min-width: 0;
+
+  @include mobile {
+    flex-wrap: wrap;
+    gap: $space-sm;
+  }
 }
 
 .pctLabel { width: 32px; font-weight: 600; color: var(--text-secondary); }
@@ -81,3 +109,121 @@
 .torrentSpeed { color: $green; flex-shrink: 0; display: flex; align-items: center; gap: 3px; }
 .torrentEta { color: $orange; flex-shrink: 0; display: flex; align-items: center; gap: 3px; }
 .torrentState { flex-shrink: 0; font-size: 0.6rem; opacity: 0.6; }
+
+.removeBtn {
+  color: var(--text-tertiary) !important;
+  opacity: 0;
+  transition: opacity $duration-fast, color $duration-fast;
+
+  .torrent:hover & { opacity: 1; }
+  &:hover { color: $red !important; }
+}
+
+// Remove confirmation modal
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xl;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.modal {
+  @include card;
+  width: 100%;
+  max-width: 480px;
+  animation: slideUp $duration-normal $ease-smooth both;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-lg $space-xl;
+  border-bottom: 1px solid var(--subtle-border);
+
+  h3 { font-size: $text-base; font-weight: 600; color: var(--text-primary); }
+}
+
+.modalBody {
+  padding: $space-xl;
+}
+
+.modalText {
+  font-size: $text-sm;
+  color: var(--text-secondary);
+  margin-bottom: $space-lg;
+  line-height: 1.5;
+  word-break: break-word;
+
+  strong { color: var(--text-primary); }
+}
+
+.deleteToggle {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  cursor: pointer;
+  user-select: none;
+
+  input { display: none; }
+}
+
+.toggleTrack {
+  width: 36px;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  position: relative;
+  transition: background $duration-fast;
+  flex-shrink: 0;
+
+  input:checked + & { background: $red; }
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform $duration-fast;
+
+  input:checked + .toggleTrack > & { transform: translateX(16px); }
+}
+
+.toggleLabel {
+  font-size: $text-sm;
+  color: var(--text-secondary);
+}
+
+.deleteWarning {
+  margin-top: $space-sm;
+  font-size: $text-xs;
+  color: $red;
+  font-weight: 500;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: $space-sm;
+  padding: $space-md $space-xl $space-lg;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
