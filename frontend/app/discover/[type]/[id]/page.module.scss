@@ -446,6 +446,38 @@
   }
 }
 
+// Season picker
+.seasonRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-md $space-lg;
+  border-bottom: 1px solid var(--row-border);
+  gap: $space-md;
+
+  &:last-child { border-bottom: none; }
+}
+
+.seasonInfo {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.seasonName {
+  font-weight: 600;
+  font-size: $text-sm;
+  color: var(--text-primary);
+}
+
+.seasonMeta {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  font-family: $font-mono;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

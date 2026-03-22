@@ -57,7 +57,7 @@ interface MovieDetail {
   error?: string
 }
 
-function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => void }) {
+function TorrentSearchModal({ query, onClose, category }: { query: string; onClose: () => void; category?: string }) {
   const [results, setResults] = useState<any[] | null>(null)
   const [searching, setSearching] = useState(true)
 
@@ -80,7 +80,7 @@ function TorrentSearchModal({ query, onClose }: { query: string; onClose: () => 
     const r = await api('/api/torrent-add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ magnet }),
+      body: JSON.stringify({ magnet, category: category || '' }),
     })
     toast(r.error ? r.error : `Added: ${name.substring(0, 50)}`, r.error ? 'error' : 'success')
     onClose()
@@ -125,6 +125,10 @@ export default function MovieDetailPage() {
   const [detail, setDetail] = useState<MovieDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
+  const [showSeasons, setShowSeasons] = useState(false)
+  const [seasons, setSeasons] = useState<any[]>([])
+  const [loadingSeasons, setLoadingSeasons] = useState(false)
+  const [seasonTorrentQuery, setSeasonTorrentQuery] = useState<string | null>(null)
 
   const type = params.type as string
   const id = params.id as string
@@ -244,7 +248,19 @@ export default function MovieDetailPage() {
                 <div className={styles.heroActions}>
                   <button
                     className={`btn btn-primary`}
-                    onClick={() => setTorrentQuery(detail.torrent_query)}
+                    onClick={async () => {
+                      if (detail.type === 'tv') {
+                        setLoadingSeasons(true)
+                        setShowSeasons(true)
+                        const r = await api<{ title: string; seasons: any[] }>(
+                          `/api/recommendations/series-seasons?tmdb_id=${detail.tmdb_id}&title=${encodeURIComponent(detail.title)}`
+                        )
+                        setLoadingSeasons(false)
+                        if (r.data) setSeasons(r.data.seasons || [])
+                      } else {
+                        setTorrentQuery(detail.torrent_query)
+                      }
+                    }}
                   >
                     <Search size={14} /> Find Torrent
                   </button>
@@ -334,7 +350,54 @@ export default function MovieDetailPage() {
 
       {/* Torrent search modal */}
       {torrentQuery && (
-        <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} />
+        <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} category={detail?.type === 'tv' ? 'tv' : 'movies'} />
+      )}
+
+      {/* Season torrent search (from season picker) */}
+      {seasonTorrentQuery && (
+        <TorrentSearchModal query={seasonTorrentQuery} onClose={() => setSeasonTorrentQuery(null)} category="tv" />
+      )}
+
+      {/* Series season picker modal */}
+      {showSeasons && !seasonTorrentQuery && (
+        <div className={styles.modalOverlay} onClick={() => setShowSeasons(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>{detail?.title} — Seasons</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowSeasons(false)}><X size={16} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              {loadingSeasons ? (
+                <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading seasons...</div>
+              ) : seasons.length === 0 ? (
+                <div className="empty-state" style={{ padding: 16 }}>No season data found</div>
+              ) : (
+                <div>
+                  {seasons.map((s: any) => (
+                    <div key={s.season_number} className={styles.seasonRow}>
+                      <div className={styles.seasonInfo}>
+                        <span className={styles.seasonName}>{s.name}</span>
+                        <span className={styles.seasonMeta}>
+                          {s.existing_count > 0 ? `${s.existing_count}/${s.episode_count} episodes` : `${s.episode_count} episodes`}
+                        </span>
+                        {s.complete && <span className="badge green">Complete</span>}
+                        {s.existing_count > 0 && !s.complete && (
+                          <span className="badge orange">{s.episode_count - s.existing_count} missing</span>
+                        )}
+                      </div>
+                      {!s.complete && (
+                        <button className="btn btn-sm" style={{ background: 'rgba(48,209,88,0.1)', color: '#30d158' }}
+                          onClick={() => setSeasonTorrentQuery(s.torrent_query)}>
+                          <Plus size={12} /> Find Torrent
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
