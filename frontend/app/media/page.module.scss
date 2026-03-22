@@ -83,17 +83,61 @@
 .npProgressRow { display: flex; align-items: center; gap: $space-sm; margin-top: 2px; }
 .npPct { font-family: $font-mono; font-size: $text-xs; color: var(--text-secondary); width: 32px; text-align: right; }
 
-// Horizontal scroll row
+// Scroll container with arrows
+.scrollContainer {
+  position: relative;
+
+  &:hover .scrollArrow { opacity: 1; }
+}
+
 .scrollRow {
   display: flex;
   gap: $space-md;
   overflow-x: auto;
   padding-bottom: $space-sm;
   scroll-snap-type: x mandatory;
+  cursor: grab;
+  user-select: none;
+  -webkit-overflow-scrolling: touch;
 
-  &::-webkit-scrollbar { height: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: var(--text-tertiary); border-radius: 2px; opacity: 0.3; }
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.scrollArrow {
+  position: absolute;
+  top: 0;
+  bottom: 28px; // leave room for title/meta below poster
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity $duration-normal;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: $radius-sm;
+  }
+
+  @include mobile { display: none; }
+}
+
+.scrollLeft {
+  left: -4px;
+  &::before { background: linear-gradient(to right, rgba(0,0,0,0.7), transparent); }
+}
+
+.scrollRight {
+  right: -4px;
+  &::before { background: linear-gradient(to left, rgba(0,0,0,0.7), transparent); }
 }
 
 // Poster card (shared by all sections)

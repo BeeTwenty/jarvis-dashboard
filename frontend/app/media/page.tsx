@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { api, timeAgo } from '@/lib/api'
 import {
   Film, Tv, Clapperboard, MonitorPlay, Play, Clock, Star, Eye, EyeOff,
-  CheckCircle, Loader2, ChevronRight, ExternalLink, Library, BarChart3
+  CheckCircle, Loader2, ChevronRight, ChevronLeft, Library, BarChart3
 } from 'lucide-react'
 import styles from './page.module.scss'
 
@@ -40,6 +40,81 @@ interface MediaOverview {
   library: LibItem[]
   genres: { name: string; count: number }[]
   total_runtime_hours: number
+}
+
+function ScrollRow({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [showLeft, setShowLeft] = useState(false)
+  const [showRight, setShowRight] = useState(false)
+  const isDragging = useRef(false)
+  const startX = useRef(0)
+  const scrollStart = useRef(0)
+
+  const checkArrows = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    setShowLeft(el.scrollLeft > 10)
+    setShowRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10)
+  }, [])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    checkArrows()
+    el.addEventListener('scroll', checkArrows, { passive: true })
+    const ro = new ResizeObserver(checkArrows)
+    ro.observe(el)
+    return () => { el.removeEventListener('scroll', checkArrows); ro.disconnect() }
+  }, [checkArrows])
+
+  function scroll(dir: number) {
+    ref.current?.scrollBy({ left: dir * 400, behavior: 'smooth' })
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    isDragging.current = true
+    startX.current = e.clientX
+    scrollStart.current = ref.current?.scrollLeft || 0
+    ref.current?.setPointerCapture(e.pointerId)
+    if (ref.current) ref.current.style.cursor = 'grabbing'
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!isDragging.current) return
+    const dx = e.clientX - startX.current
+    if (ref.current) ref.current.scrollLeft = scrollStart.current - dx
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    isDragging.current = false
+    ref.current?.releasePointerCapture(e.pointerId)
+    if (ref.current) ref.current.style.cursor = ''
+  }
+
+  return (
+    <div className={styles.scrollContainer}>
+      {showLeft && (
+        <button className={`${styles.scrollArrow} ${styles.scrollLeft}`} onClick={() => scroll(-1)}>
+          <ChevronLeft size={20} />
+        </button>
+      )}
+      <div
+        ref={ref}
+        className={styles.scrollRow}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
+      >
+        {children}
+      </div>
+      {showRight && (
+        <button className={`${styles.scrollArrow} ${styles.scrollRight}`} onClick={() => scroll(1)}>
+          <ChevronRight size={20} />
+        </button>
+      )}
+    </div>
+  )
 }
 
 function PosterCard({ item, showProgress, subtitle }: { item: LibItem; showProgress?: boolean; subtitle?: string }) {
@@ -196,11 +271,11 @@ export default function MediaPage() {
         {continue_watching.length > 0 && (
           <div className="section">
             <h3 className="section-title"><Play size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Continue Watching</h3>
-            <div className={styles.scrollRow}>
+            <ScrollRow>
               {continue_watching.map((item, i) => (
                 <PosterCard key={i} item={item} showProgress subtitle={item.episode_title || `${item.progress}% · ${item.runtime_min}m`} />
               ))}
-            </div>
+            </ScrollRow>
           </div>
         )}
 
@@ -208,7 +283,7 @@ export default function MediaPage() {
         {next_up.length > 0 && (
           <div className="section">
             <h3 className="section-title"><ChevronRight size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Next Up</h3>
-            <div className={styles.scrollRow}>
+            <ScrollRow>
               {next_up.map((item, i) => (
                 <div key={i} className={styles.posterCard}>
                   <a href={item.jellyfin_url} target="_blank" rel="noopener" className={styles.posterWrap}>
@@ -223,7 +298,7 @@ export default function MediaPage() {
                   <span className={styles.posterMeta}>S{item.season}E{item.episode} · {item.name}</span>
                 </div>
               ))}
-            </div>
+            </ScrollRow>
           </div>
         )}
 
@@ -231,11 +306,11 @@ export default function MediaPage() {
         {unwatched.length > 0 && (
           <div className="section">
             <h3 className="section-title"><EyeOff size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Unwatched ({unwatched.length})</h3>
-            <div className={styles.scrollRow}>
+            <ScrollRow>
               {unwatched.slice(0, 15).map((item, i) => (
                 <PosterCard key={i} item={item} />
               ))}
-            </div>
+            </ScrollRow>
           </div>
         )}
 
@@ -243,11 +318,11 @@ export default function MediaPage() {
         {watch_history.length > 0 && (
           <div className="section">
             <h3 className="section-title"><Eye size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Recently Watched</h3>
-            <div className={styles.scrollRow}>
+            <ScrollRow>
               {watch_history.map((item, i) => (
                 <PosterCard key={i} item={item} subtitle={item.date_played ? timeAgo(item.date_played) : ''} />
               ))}
-            </div>
+            </ScrollRow>
           </div>
         )}
 

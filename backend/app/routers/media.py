@@ -172,7 +172,11 @@ def media_overview():
             if np:
                 pos = s.get("PlayState", {}).get("PositionTicks", 0)
                 total = np.get("RunTimeTicks", 1) or 1
-                poster_tag = np.get("ImageTags", {}).get("Primary", "")
+                # Use series poster for episodes
+                if np.get("Type") == "Episode" and np.get("SeriesId") and np.get("SeriesPrimaryImageTag"):
+                    poster = _poster_url(np["SeriesId"], np["SeriesPrimaryImageTag"])
+                else:
+                    poster = _poster_url(np["Id"], np.get("ImageTags", {}).get("Primary", ""))
                 now_playing.append({
                     "user": s.get("UserName", ""),
                     "client": s.get("Client", ""),
@@ -180,7 +184,7 @@ def media_overview():
                     "title": np.get("Name", ""),
                     "type": np.get("Type", ""),
                     "progress": round(pos / total * 100),
-                    "poster": _poster_url(np["Id"], poster_tag),
+                    "poster": poster,
                     "is_paused": s.get("PlayState", {}).get("IsPaused", False),
                     "jellyfin_url": _jellyfin_web_url(np["Id"]),
                 })
@@ -189,12 +193,16 @@ def media_overview():
     # Next up (series)
     nextup = jellyfin_svc.request(
         f"/Shows/NextUp?userId={user_id}&Limit=10"
-        f"&Fields=Overview,ImageTags,RunTimeTicks,ParentIndexNumber,IndexNumber"
+        f"&Fields=Overview,ImageTags,RunTimeTicks,ParentIndexNumber,IndexNumber,SeriesId,SeriesPrimaryImageTag"
     )
     next_episodes = []
     if isinstance(nextup, dict) and nextup.get("Items"):
         for item in nextup["Items"]:
-            poster_tag = item.get("ImageTags", {}).get("Primary", "")
+            # Use series poster, not episode still frame
+            if item.get("SeriesId") and item.get("SeriesPrimaryImageTag"):
+                poster = _poster_url(item["SeriesId"], item["SeriesPrimaryImageTag"])
+            else:
+                poster = _poster_url(item["Id"], item.get("ImageTags", {}).get("Primary", ""))
             next_episodes.append({
                 "id": item["Id"],
                 "series_name": item.get("SeriesName", ""),
@@ -203,7 +211,7 @@ def media_overview():
                 "name": item.get("Name", ""),
                 "overview": (item.get("Overview") or "")[:150],
                 "runtime_min": round(item.get("RunTimeTicks", 0) / 600000000),
-                "poster": _poster_url(item["Id"], poster_tag),
+                "poster": poster,
                 "jellyfin_url": _jellyfin_web_url(item["Id"]),
             })
     result["next_up"] = next_episodes
