@@ -1,4 +1,7 @@
 from fastapi import APIRouter
+from fastapi.responses import Response
+
+import httpx
 
 from app.config import settings
 from app.services import jellyfin as jellyfin_svc
@@ -23,7 +26,24 @@ def _get_user_id() -> str:
 def _poster_url(item_id: str, tag: str = "", max_height: int = 300) -> str:
     if not tag:
         return ""
-    return f"{settings.jellyfin_base}/Items/{item_id}/Images/Primary?maxHeight={max_height}&tag={tag}&quality=90"
+    return f"/api/jellyfin-media/poster/{item_id}?maxHeight={max_height}&tag={tag}"
+
+
+@router.get("-media/poster/{item_id}")
+def poster_proxy(item_id: str, maxHeight: int = 300, tag: str = ""):
+    """Proxy Jellyfin poster images to avoid localhost CORS issues."""
+    url = f"{settings.jellyfin_base}/Items/{item_id}/Images/Primary?maxHeight={maxHeight}&tag={tag}&quality=90&api_key={settings.jellyfin_api_key}"
+    try:
+        resp = httpx.get(url, timeout=10)
+        if resp.status_code == 200:
+            return Response(
+                content=resp.content,
+                media_type=resp.headers.get("content-type", "image/jpeg"),
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+    except Exception:
+        pass
+    return Response(status_code=404)
 
 
 @router.get("/{path:path}")
