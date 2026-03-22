@@ -1,101 +1,73 @@
-# Jarvis Dashboard — Homelab Mission Control
+# Jarvis Dashboard
 
-**One dashboard to monitor your server, manage Docker containers, discover movies, and download them — all without leaving the browser.**
+A self-hosted homelab dashboard that combines infrastructure monitoring, container management, media discovery, and automated downloads into a single interface.
 
 ![Jarvis Dashboard Overview](./docs/screenshots/overview-dark.png)
 
 ---
 
-## The Killer Feature: Discover → Watch
+## Features
 
-Most homelab dashboards stop at system monitoring. Jarvis goes further — it has a built-in **movie recommendation engine** that connects directly to your torrent client. The entire workflow lives inside the dashboard:
+### Media Discovery & Downloads
 
-### 1. Pick a mood or search for anything
+Jarvis integrates a recommendation engine directly into the dashboard. Browse by mood, search by title, get personalized suggestions from your Jellyfin library, or explore what's trending — then download anything with one click through the built-in torrent client.
 
-Choose from 12 moods, search by title, analyze your library, or browse what's trending.
+**Discover** — Four modes to find content:
 
-![Mood Picker](./docs/screenshots/discover-dark.png)
+| Mode | Description |
+|------|-------------|
+| **By Mood** | 12 mood categories powered by curated community data and TMDB |
+| **Similar To** | Title search with autocomplete, returns TMDB recommendations |
+| **From Library** | Analyzes your Jellyfin collection and suggests new titles based on your taste, with type and genre filters |
+| **Trending** | TMDB trending movies and series, filterable by time window and media type |
 
-![Global Search](./docs/screenshots/discover-search-dark.png)
+![Discover](./docs/screenshots/discover-dark.png)
 
-### 2. Get smart recommendations
+![Library Recommendations](./docs/screenshots/discover-library-dark.png)
 
-Recommendations are powered by **2,896 curated movies** from Reddit's r/MovieSuggestions wiki (120 categories) + TMDB's recommendation engine. Type a movie name and get autocomplete suggestions from the knowledge base.
+![Trending](./docs/screenshots/discover-trending-dark.png)
 
-![Thriller Recommendations](./docs/screenshots/discover-thriller-dark.png)
+**Detail Pages** — Full TMDB metadata with poster, backdrop, synopsis, cast, ratings, and related titles. Breadcrumb navigation throughout.
 
-![Autocomplete](./docs/screenshots/discover-autocomplete-dark.png)
+![Movie Detail](./docs/screenshots/movie-detail-dark.png)
 
-### 3. Explore full movie details
+**Torrent Integration** — Every recommendation includes a "Find Torrent" button that searches available sources and adds directly to qBittorrent.
 
-Click any recommendation to see the full TMDB detail page — poster, backdrop, synopsis, cast with photos, ratings, and similar titles.
-
-![Movie Detail - Inception](./docs/screenshots/movie-detail-dark.png)
-
-### 4. One click to download
-
-Hit "Find Torrent" on any recommendation or detail page. The dashboard searches for available torrents and lets you add them directly to qBittorrent — no switching apps, no copy-pasting magnet links.
-
-![Torrent Search Modal](./docs/screenshots/discover-torrent-modal-dark.png)
-
-### 5. Track your downloads
-
-Switch to the Torrents tab to monitor progress, pause/resume, and manage all your downloads.
+![Torrent Search](./docs/screenshots/discover-torrent-modal-dark.png)
 
 ![Torrent Management](./docs/screenshots/torrents-dark.png)
 
----
+### Infrastructure Monitoring
 
-## Everything Else
-
-Jarvis isn't just a movie finder. It's a complete homelab control panel.
-
-### System Monitoring
-Real-time CPU, RAM, and disk gauges. 30-minute bandwidth history chart. Top processes by CPU/memory. Storage breakdown by directory.
+Real-time CPU, RAM, and disk usage. 30-minute bandwidth history. Top processes by resource consumption. Storage breakdown by directory.
 
 ![System Monitoring](./docs/screenshots/system-dark.png)
 
 ### Docker Management
-See all containers at a glance with status indicators, CPU/memory bars. Start, stop, restart any container. View live logs.
+
+Container overview with status indicators and resource bars. Start, stop, restart any container. Live log viewer.
 
 ![Docker Management](./docs/screenshots/docker-dark.png)
 
 ### Jellyfin Media Library
-Library stats (movies, series, episodes), recently added items, and active streaming sessions.
+
+Library statistics, recently added items, and active streaming sessions.
 
 ![Media Library](./docs/screenshots/media-dark.png)
 
 ### File Explorer
-Full filesystem browser with breadcrumb navigation, rename, copy, move, delete, and download.
+
+Filesystem browser with breadcrumb navigation. Supports rename, copy, move, delete, and download operations.
 
 ![File Explorer](./docs/screenshots/files-dark.png)
 
-### Dark & Light Mode
-Toggle between themes. Preference is saved and respects your system setting.
+### Theming
 
-| Dark Mode | Light Mode |
-|-----------|------------|
+Dark and light modes with system preference detection.
+
+| Dark | Light |
+|------|-------|
 | ![Dark](./docs/screenshots/overview-dark.png) | ![Light](./docs/screenshots/overview-light.png) |
-
----
-
-## Recommendation Engine — How It Works
-
-| Mode | What it does |
-|------|-------------|
-| **By Mood** | Pick from 12 moods (Feel Good, Thriller, Mind-Bending, Horror, etc.) — returns curated picks from Reddit's community wiki |
-| **Similar To** | Type a movie name with autocomplete, get similar titles from TMDB + Reddit community data |
-| **From Library** | Analyzes your Jellyfin library genres and recommends titles you don't already own |
-| **Trending** | Reddit's community-voted monthly top 100 movies |
-
-![Library Analysis](./docs/screenshots/discover-library-dark.png)
-
-**Data sources:**
-- **Reddit r/MovieSuggestions wiki** — 2,896 movies across 120 hand-curated categories, parsed and indexed locally. Categories like *Action > Hidden Badass*, *Thriller > Mindfuck*, *Comedy > Mockumentary*, *Drama > Coming of Age*.
-- **TMDB API** — Movie details, cast, posters, ratings, and recommendation engine.
-- **Knowledge base is cached for 24 hours** — no rate limiting issues, instant responses.
-
-Every recommendation card has a **"Find Torrent"** button. Click it, pick a torrent from the search results, and it's added to qBittorrent. The movie shows up in Jellyfin once downloaded and imported. **Discover → Download → Watch — all from one interface.**
 
 ---
 
@@ -110,64 +82,62 @@ Browser ──→ Next.js (3000) ──→ Python Backend (8002) ──┬──
                                                         └──→ System (/proc, du, etc.)
 ```
 
-| Layer | Tech |
-|-------|------|
+| Layer | Stack |
+|-------|-------|
 | Frontend | Next.js 16, React 19, TypeScript, SCSS Modules |
-| Backend | Python 3 stdlib — single `server.py`, zero pip dependencies |
+| Backend | Python 3 stdlib — single `server.py`, zero external dependencies |
 | Icons | Lucide React |
-| Theme | CSS variables + localStorage |
-| Data | Jellyfin, qBittorrent, Docker, TMDB, Reddit Wiki, wttr.in |
+| Theme | CSS custom properties, localStorage |
+| Data Sources | TMDB, Jellyfin, qBittorrent, Docker, Reddit Wiki, wttr.in |
 
-The backend is a **single Python file** using the standard library's `ThreadingHTTPServer`. No Flask, no Django, no `pip install`. It proxies API calls (avoiding CORS), runs system commands via subprocess, scrapes Reddit wikis, and caches TMDB responses. ~1,600 lines of code.
+The backend is a single Python file (~1,600 lines) using `ThreadingHTTPServer` from the standard library. No framework dependencies. It handles API proxying, system metrics, wiki parsing, and TMDB response caching.
 
 ---
 
-## Quick Start
+## Getting Started
 
 ```bash
-# Clone
 git clone https://github.com/Animesh98/jarvis-dashboard.git
 cd jarvis-dashboard
 
-# Configure
 cp .env.example .env
-# Edit .env:
-#   JELLYFIN_API_KEY=your_key
-#   QBIT_USER=admin
-#   QBIT_PASS=your_password
-#   TMDB_API_KEY=your_tmdb_key  (free at themoviedb.org)
+# Set your keys in .env:
+#   JELLYFIN_API_KEY=...
+#   QBIT_USER=...
+#   QBIT_PASS=...
+#   TMDB_API_KEY=...    (free at themoviedb.org)
 
-# Start backend
+# Backend
 python3 server.py &
 
-# Start frontend
+# Frontend
 cd frontend && npm install && npm run dev
-
-# Open http://localhost:3000
 ```
 
-**Requirements:** Python 3.8+, Node.js 18+, Docker, Jellyfin, qBittorrent on the same network.
+Open `http://localhost:3000`.
+
+**Requirements:** Python 3.8+, Node.js 18+, Docker, Jellyfin, and qBittorrent accessible on the local network.
 
 ---
 
 <details>
-<summary><strong>Full API Reference (30+ endpoints)</strong></summary>
+<summary><strong>API Reference (30+ endpoints)</strong></summary>
 
 ### System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/system` | CPU, memory, disk, uptime |
-| GET | `/api/processes` | Top 10 processes by CPU and memory |
-| GET | `/api/storage` | Media directory sizes (cached 5min) |
-| GET | `/api/weather` | Weather via wttr.in (cached 15min) |
-| GET | `/api/bandwidth/history` | Network speed history (last 30min) |
+| GET | `/api/processes` | Top processes by CPU and memory |
+| GET | `/api/storage` | Media directory sizes (cached 5 min) |
+| GET | `/api/weather` | Weather data (cached 15 min) |
+| GET | `/api/bandwidth/history` | Network throughput history (30 min) |
 
 ### Docker
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/docker/containers` | List all containers with status |
+| GET | `/api/docker/containers` | List containers with status |
 | GET | `/api/docker/stats` | Container resource usage |
 | GET | `/api/docker/logs?container=X&lines=N` | Container log output |
 | POST | `/api/docker/action` | Start, stop, or restart a container |
@@ -176,7 +146,7 @@ cd frontend && npm install && npm run dev
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/torrent-search?q=X` | Search torrents via apibay |
+| GET | `/api/torrent-search?q=X` | Search available torrents |
 | POST | `/api/torrent-add` | Add magnet link to qBittorrent |
 | GET/POST | `/api/qbit/*` | Proxy to qBittorrent Web API |
 
@@ -190,21 +160,21 @@ cd frontend && npm install && npm run dev
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/recommendations/mood?mood=X` | Recommendations by mood |
-| GET | `/api/recommendations/similar?title=X` | Find similar titles |
-| GET | `/api/recommendations/library` | Recommendations from Jellyfin library analysis |
-| GET | `/api/recommendations/trending` | Monthly top 100 from Reddit |
-| GET | `/api/recommendations/categories` | List all 120 wiki categories |
+| GET | `/api/recommendations/mood?mood=X` | Mood-based recommendations |
+| GET | `/api/recommendations/similar?title=X` | Similar titles via TMDB |
+| GET | `/api/recommendations/library` | Personalized suggestions from library analysis |
+| GET | `/api/recommendations/trending?time_window=week` | TMDB trending (day or week) |
+| GET | `/api/recommendations/categories` | Available recommendation categories |
 | GET | `/api/recommendations/autocomplete?q=X` | Title autocomplete |
-| GET | `/api/recommendations/search?q=X` | Full TMDB multi-search |
+| GET | `/api/recommendations/search?q=X` | TMDB multi-search |
 | GET | `/api/recommendations/detail?tmdb_id=X&type=Y` | Full movie/series detail |
 
 ### Files
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/files/list?path=X` | List directory contents |
-| GET | `/api/files/download?path=X` | Download a file |
+| GET | `/api/files/list?path=X` | Directory listing |
+| GET | `/api/files/download?path=X` | File download |
 | POST | `/api/files/delete` | Delete file or directory |
 | POST | `/api/files/move` | Move file or directory |
 | POST | `/api/files/copy` | Copy file or directory |
@@ -224,12 +194,13 @@ cd frontend && npm install && npm run dev
 
 ---
 
-## Credits
+## Acknowledgements
 
-- Built with [Claude Code](https://claude.com/claude-code) — AI pair programming
-- Movie data: [TMDB](https://www.themoviedb.org/), Reddit [r/MovieSuggestions](https://www.reddit.com/r/MovieSuggestions/) community
-- Icons: [Lucide](https://lucide.dev/)
-- Weather: [wttr.in](https://wttr.in/)
+- [TMDB](https://www.themoviedb.org/) — Movie and series metadata
+- [r/MovieSuggestions](https://www.reddit.com/r/MovieSuggestions/) — Community-curated recommendation data
+- [Lucide](https://lucide.dev/) — Icon set
+- [wttr.in](https://wttr.in/) — Weather data
+- Built with [Claude Code](https://claude.com/claude-code)
 
 ## License
 
