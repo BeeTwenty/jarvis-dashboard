@@ -255,12 +255,7 @@ export default function MovieDetailPage() {
                 )}
                 <div className={styles.heroActions}>
                   {libraryInfo?.in_library && libraryInfo.jellyfin_id && (
-                    <a href={(() => {
-                      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
-                      const webUrl = `/api/jellyfin-media/play/${libraryInfo.jellyfin_id}`
-                      if (isMobile) return `intent://items/${libraryInfo.jellyfin_id}#Intent;scheme=jellyfin;package=org.jellyfin.mobile;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
-                      return webUrl
-                    })()} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
+                    <a href={`/api/jellyfin-media/play/${libraryInfo.jellyfin_id}`} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
                       <Play size={14} /> Play on Jellyfin
                     </a>
                   )}

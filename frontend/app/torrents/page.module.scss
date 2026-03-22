@@ -48,6 +48,12 @@
   &:hover { background: rgba($green, 0.18) !important; box-shadow: 0 2px 8px rgba($green, 0.15) !important; }
 }
 
+.clearBtn {
+  background: rgba($orange, 0.1) !important;
+  color: $orange !important;
+  &:hover { background: rgba($orange, 0.18) !important; }
+}
+
 .list {
   display: flex;
   flex-direction: column;

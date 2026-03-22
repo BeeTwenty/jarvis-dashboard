@@ -31,14 +31,7 @@ interface NextUp {
 }
 
 function jellyfinPlayUrl(jellyfinId: string): string {
-  // On mobile, use intent URL to open Jellyfin app; falls back to browser
-  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
-  const webUrl = `/api/jellyfin-media/play/${jellyfinId}`
-  if (isMobile) {
-    // Android intent: tries Jellyfin app first, falls back to web
-    return `intent://items/${jellyfinId}#Intent;scheme=jellyfin;package=org.jellyfin.mobile;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
-  }
-  return webUrl
+  return `/api/jellyfin-media/play/${jellyfinId}`
 }
 
 interface MediaOverview {

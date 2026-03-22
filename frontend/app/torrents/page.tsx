@@ -4,7 +4,7 @@ import { useState, memo } from 'react'
 import { useData } from '@/lib/DataContext'
 import { api, fmtBytes, fmtSpeed, fmtETA } from '@/lib/api'
 import { toast } from '@/lib/toast'
-import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock, Trash2 } from 'lucide-react'
+import { Search, X, Plus, Pause, Play, ArrowDown, ArrowUp, Clock, Trash2, CheckCircle } from 'lucide-react'
 import styles from './page.module.scss'
 
 const TorrentItem = memo(function TorrentItem({ t, onToggle, onRemove }: { t: any; onToggle: (hash: string, paused: boolean) => void; onRemove: (hash: string, name: string) => void }) {
@@ -117,11 +117,24 @@ export default function TorrentsPage() {
     setTimeout(refreshFast, 800)
   }
 
+  async function clearCompleted() {
+    const r = await api('/api/actions/clean-torrents', { method: 'POST' })
+    toast(r.data?.message || r.error || 'Done', r.error ? 'error' : 'success')
+    setTimeout(refreshFast, 800)
+  }
+
+  const completedCount = sorted.filter(t => Math.round((t.progress || 0) * 100) >= 100).length
+
   return (
     <>
       <header className="page-header">
         <h1 className="page-title">Torrents</h1>
         <div className="page-meta">
+          {completedCount > 0 && (
+            <button className={`btn btn-sm ${styles.clearBtn}`} onClick={clearCompleted}>
+              <CheckCircle size={12} /> Clear {completedCount} completed
+            </button>
+          )}
           {transfer && (
             <>
               <span style={{ color: '#30d158', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}><ArrowDown size={14} /> {fmtSpeed(transfer.dl_info_speed)}</span>
