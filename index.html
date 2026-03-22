@@ -327,7 +327,7 @@ main{position:fixed;top:calc(var(--hdr-h) + var(--nav-h));left:0;right:0;bottom:
   <!-- ═══ Files ═══ -->
   <div class="page" id="page-files">
     <div class="card"><div class="card-hdr"><span class="card-title">File Explorer</span><div class="fe-nav-btns"><button class="fe-btn" id="fe-back-btn" disabled title="Back">&larr;</button><button class="fe-btn" id="fe-fwd-btn" disabled title="Forward">&rarr;</button><button class="fe-btn" id="fe-up-btn" title="Up">&uarr;</button><button class="fe-btn" id="fe-home-btn" title="Home">&#x2302;</button><button class="fe-btn" id="fe-root-btn" title="Root">/</button><button class="fe-btn" id="fe-mkdir-btn">+ Folder</button><button class="fe-btn" id="fe-refresh-btn">&#x21BB;</button></div></div><div class="card-body">
-      <div class="fe-path-bar"><input type="text" id="fe-path-input" spellcheck="false" placeholder="/home/animesh"><button class="fe-btn" id="fe-go-btn">GO</button></div>
+      <div class="fe-path-bar"><input type="text" id="fe-path-input" spellcheck="false" placeholder="~"><button class="fe-btn" id="fe-go-btn">GO</button></div>
       <div class="fe-breadcrumb" id="fe-breadcrumb"></div>
       <div id="fe-table" class="fe-table"></div>
     </div></div>
@@ -592,7 +592,7 @@ function renderWeather(){const w=$('weather');if(!D.weather||D.weather.error){w.
 document.querySelectorAll('.action-btn').forEach(btn=>btn.addEventListener('click',async function(){this.classList.add('working');const orig=this.innerHTML;this.innerHTML='Working...';const r=await api(`/api/actions/${this.dataset.action}`,{method:'POST'});toast(r.data?.message||r.error||'Done',r.error?'error':'success');this.innerHTML=orig;this.classList.remove('working');if(this.dataset.action==='clean-torrents')setTimeout(refreshFast,1000)}));
 
 // ═══════════════ File Explorer ═══════════════
-let fePath='/home/animesh', feSelected=null;
+let fePath='~', feSelected=null;
 let feHistory=[], feHistoryIdx=-1, feNavigating=false;
 
 function feUpdateNavBtns(){
@@ -677,7 +677,7 @@ async function feAction(a){
 $('fe-back-btn').addEventListener('click',()=>{if(feHistoryIdx>0){feHistoryIdx--;feNavigate(feHistory[feHistoryIdx],false)}});
 $('fe-fwd-btn').addEventListener('click',()=>{if(feHistoryIdx<feHistory.length-1){feHistoryIdx++;feNavigate(feHistory[feHistoryIdx],false)}});
 $('fe-up-btn').addEventListener('click',()=>{if(fePath&&fePath!=='/'){const parent=fePath.replace(/\/[^/]+\/?$/,'');feNavigate(parent||'/')}});
-$('fe-home-btn').addEventListener('click',()=>feNavigate('/home/animesh'));
+$('fe-home-btn').addEventListener('click',()=>feNavigate('~'));
 $('fe-root-btn').addEventListener('click',()=>feNavigate('/'));
 $('fe-refresh-btn').addEventListener('click',()=>feNavigate(fePath,false));
 $('fe-go-btn').addEventListener('click',()=>{const v=$('fe-path-input').value.trim();if(v)feNavigate(v)});

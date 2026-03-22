@@ -85,12 +85,12 @@ Browser ──→ Next.js (3000) ──→ Python Backend (8002) ──┬──
 | Layer | Stack |
 |-------|-------|
 | Frontend | Next.js 16, React 19, TypeScript, SCSS Modules |
-| Backend | Python 3 stdlib — single `server.py`, zero external dependencies |
+| Backend | FastAPI, Pydantic, httpx, uvicorn |
 | Icons | Lucide React |
 | Theme | CSS custom properties, localStorage |
 | Data Sources | TMDB, Jellyfin, qBittorrent, Docker, Reddit Wiki, wttr.in |
 
-The backend is a single Python file (~1,600 lines) using `ThreadingHTTPServer` from the standard library. No framework dependencies. It handles API proxying, system metrics, wiki parsing, and TMDB response caching.
+The backend follows a standard FastAPI project structure — routers for each API group, service modules for business logic, and Pydantic settings for configuration. Auto-generated API documentation is available at `/docs`.
 
 ---
 
@@ -108,15 +108,18 @@ cp .env.example .env
 #   TMDB_API_KEY=...    (free at themoviedb.org)
 
 # Backend
-python3 server.py &
+cd backend
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8002 &
 
 # Frontend
-cd frontend && npm install && npm run dev
+cd ../frontend && npm install && npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. API docs at `http://localhost:8002/docs`.
 
-**Requirements:** Python 3.8+, Node.js 18+, Docker, Jellyfin, and qBittorrent accessible on the local network.
+**Requirements:** Python 3.10+, Node.js 18+, Docker, Jellyfin, and qBittorrent accessible on the local network.
 
 ---
 

@@ -5,7 +5,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const BASE_URL = 'http://192.168.0.2:3000';
+const BASE_URL = 'http://localhost:3000';
 const OUT_DIR = path.resolve(__dirname);
 const DESKTOP = { width: 1920, height: 1080 };
 const MOBILE = { width: 390, height: 844 };

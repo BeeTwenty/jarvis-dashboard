@@ -38,12 +38,12 @@ load_env(ENV_FILE)
 
 # --- Service configs ---
 QBIT_BASE = "http://localhost:8080/api/v2"
-QBIT_USER = os.environ.get("QBIT_USER", "animesh")
+QBIT_USER = os.environ.get("QBIT_USER", "")
 QBIT_PASS = os.environ.get("QBIT_PASS", "")
 JELLYFIN_BASE = "http://localhost:8096"
 JELLYFIN_API_KEY = os.environ.get("JELLYFIN_API_KEY", "")
 MEDIA_PATH = os.environ.get("MEDIA_PATH", "/data/media")
-WEATHER_CITY = os.environ.get("WEATHER_CITY", "Bangalore")
+WEATHER_CITY = os.environ.get("WEATHER_CITY", "")
 
 # ═══════════════════════════════════════
 #  qBittorrent
@@ -391,7 +391,7 @@ def search_torrents(query):
 import mimetypes
 import stat as stat_module
 
-FILE_HOME = os.environ.get("FILE_HOME", "/home/animesh")
+FILE_HOME = os.environ.get("FILE_HOME", os.path.expanduser("~"))
 
 def _resolve_path(requested):
     """Resolve a path. Accepts absolute paths or relative-to-home paths."""
@@ -1367,7 +1367,7 @@ def get_recommendations_search(query):
     return result
 
 
-TMDB_API_KEY = "7c91f542f8c89e3b5e7f6338f8b2e0fc"
+TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "")
 TMDB_BASE = "https://api.themoviedb.org/3"
 _detail_cache = {}
 _DETAIL_TTL = 86400  # 24 hours

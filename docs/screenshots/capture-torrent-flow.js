@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const BASE_URL = 'http://192.168.0.2:3000';
+const BASE_URL = 'http://localhost:3000';
 const OUT_DIR = path.join(__dirname);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

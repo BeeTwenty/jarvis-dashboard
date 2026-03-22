@@ -33,13 +33,13 @@ const FileRow = memo(function FileRow({ item, absPath, isSelected, onSelect, onN
 })
 
 export default function FilesPage() {
-  const [currentPath, setCurrentPath] = useState('/home/animesh')
+  const [currentPath, setCurrentPath] = useState('~')
   const [items, setItems] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<{ path: string; name: string; is_dir: boolean } | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const [histIdx, setHistIdx] = useState(-1)
-  const [pathInput, setPathInput] = useState('/home/animesh')
+  const [pathInput, setPathInput] = useState('~')
   const [modal, setModal] = useState<{ title: string; placeholder: string; defaultVal: string; resolve: (v: string | null) => void } | null>(null)
   const modalInputRef = useRef<HTMLInputElement>(null)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; item: FileItem; absPath: string } | null>(null)
@@ -61,7 +61,7 @@ export default function FilesPage() {
   }, [histIdx])
 
   const loaded = useRef(false)
-  if (!loaded.current) { loaded.current = true; navigate('/home/animesh') }
+  if (!loaded.current) { loaded.current = true; navigate('~') }
 
   function goBack() { if (histIdx > 0) { const i = histIdx - 1; setHistIdx(i); navigate(history[i], false) } }
   function goForward() { if (histIdx < history.length - 1) { const i = histIdx + 1; setHistIdx(i); navigate(history[i], false) } }
@@ -103,7 +103,7 @@ export default function FilesPage() {
           <button className="btn btn-ghost btn-sm" disabled={histIdx <= 0} onClick={goBack}><ChevronLeft size={16} /></button>
           <button className="btn btn-ghost btn-sm" disabled={histIdx >= history.length - 1} onClick={goForward}><ChevronRight size={16} /></button>
           <button className="btn btn-ghost btn-sm" onClick={goUp}><ChevronUp size={16} /></button>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/home/animesh')}><Home size={16} /></button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('~')}><Home size={16} /></button>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}><Slash size={16} /></button>
           <button className="btn btn-secondary btn-sm" onClick={handleMkdir}><FolderPlus size={14} /> New</button>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate(currentPath, false)}><RefreshCw size={14} /></button>

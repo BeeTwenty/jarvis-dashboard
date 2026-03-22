@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-const BASE = 'http://192.168.0.2:3000';
+const BASE = 'http://localhost:3000';
 const OUT = __dirname;
 
 (async () => {

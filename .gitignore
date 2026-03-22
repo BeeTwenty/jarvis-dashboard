@@ -3,4 +3,9 @@ node_modules/
 .env
 __pycache__/
 *.pyc
+venv/
+backend/venv/
+docs/reddit-posts.md
 docs/generate_pdf.py
+*.egg-info/
+.pytest_cache/
