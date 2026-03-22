@@ -138,7 +138,7 @@ def clean_completed() -> dict:
             return torrents
         cleaned = []
         for t in torrents:
-            if t.get("progress", 0) >= 1.0 and t.get("state", "") in ("pausedUP", "stalledUP", "uploading"):
+            if t.get("progress", 0) >= 1.0 and t.get("state", "") in ("pausedUP", "stalledUP", "uploading", "stoppedUP", "forcedUP", "queuedUP", "checkingUP"):
                 h = t.get("hash", "")
                 if h:
                     request(f"/torrents/delete?hashes={h}&deleteFiles=false", method="POST")
