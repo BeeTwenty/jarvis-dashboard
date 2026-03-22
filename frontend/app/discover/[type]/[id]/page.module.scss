@@ -446,24 +446,53 @@
   }
 }
 
-// Season picker
-.seasonRow {
+// Season picker modal
+.seasonModal {
+  @include card;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: $space-md $space-lg;
-  border-bottom: 1px solid var(--row-border);
-  gap: $space-md;
+  flex-direction: column;
+  animation: slideUp $duration-normal $ease-smooth both;
+}
 
+.seasonModalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: $space-xs 0;
+}
+
+.seasonList {
+  display: flex;
+  flex-direction: column;
+}
+
+.seasonBlock {
+  border-bottom: 1px solid var(--subtle-border);
   &:last-child { border-bottom: none; }
 }
 
-.seasonInfo {
+.seasonHeader {
   display: flex;
   align-items: center;
   gap: $space-sm;
-  flex-wrap: wrap;
-  flex: 1;
+  padding: $space-md $space-xl;
+  cursor: pointer;
+  transition: background $duration-fast;
+  user-select: none;
+
+  &:hover { background: var(--bg-hover); }
+}
+
+.seasonComplete {
+  opacity: 0.5;
+}
+
+.seasonChevron {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  display: flex;
 }
 
 .seasonName {
@@ -476,6 +505,76 @@
   font-size: $text-xs;
   color: var(--text-tertiary);
   font-family: $font-mono;
+  flex: 1;
+}
+
+.seasonDlBtn {
+  background: rgba($green, 0.1) !important;
+  color: $green !important;
+  flex-shrink: 0;
+  &:hover { background: rgba($green, 0.18) !important; }
+}
+
+// Episode list
+.episodeList {
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--row-border);
+}
+
+.episodeRow {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: 8px $space-xl 8px calc(#{$space-xl} + 24px);
+  border-bottom: 1px solid var(--row-border);
+  font-size: $text-sm;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-hover); }
+}
+
+.episodeOwned {
+  opacity: 0.45;
+}
+
+.episodeNum {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.episodeName {
+  flex: 1;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.episodeRuntime {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.episodeCheck {
+  color: $green;
+  flex-shrink: 0;
+  display: flex;
+}
+
+.episodeDlBtn {
+  background: rgba($blue, 0.1) !important;
+  color: var(--blue) !important;
+  padding: 3px 8px !important;
+  flex-shrink: 0;
+  &:hover { background: rgba($blue, 0.18) !important; }
 }
 
 @keyframes fadeIn {

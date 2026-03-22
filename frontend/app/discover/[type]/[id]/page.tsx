@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { api, fmtBytes } from '@/lib/api'
 import { toast } from '@/lib/toast'
 import {
-  ArrowLeft, Star, Clock, Film, Tv, Plus, X, ArrowUp, ArrowDown, Loader2, Search
+  ArrowLeft, Star, Clock, Film, Tv, Plus, X, ArrowUp, ArrowDown, Loader2, Search,
+  ChevronDown, ChevronRight, Check, Download
 } from 'lucide-react'
 import styles from './page.module.scss'
 
@@ -125,10 +126,11 @@ export default function MovieDetailPage() {
   const [detail, setDetail] = useState<MovieDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
+  const [torrentCategory, setTorrentCategory] = useState<string>('')
   const [showSeasons, setShowSeasons] = useState(false)
   const [seasons, setSeasons] = useState<any[]>([])
   const [loadingSeasons, setLoadingSeasons] = useState(false)
-  const [seasonTorrentQuery, setSeasonTorrentQuery] = useState<string | null>(null)
+  const [expandedSeason, setExpandedSeason] = useState<number | null>(null)
 
   const type = params.type as string
   const id = params.id as string
@@ -350,49 +352,80 @@ export default function MovieDetailPage() {
 
       {/* Torrent search modal */}
       {torrentQuery && (
-        <TorrentSearchModal query={torrentQuery} onClose={() => setTorrentQuery(null)} category={detail?.type === 'tv' ? 'tv' : 'movies'} />
-      )}
-
-      {/* Season torrent search (from season picker) */}
-      {seasonTorrentQuery && (
-        <TorrentSearchModal query={seasonTorrentQuery} onClose={() => setSeasonTorrentQuery(null)} category="tv" />
+        <TorrentSearchModal query={torrentQuery} onClose={() => { setTorrentQuery(null); setTorrentCategory('') }} category={torrentCategory} />
       )}
 
       {/* Series season picker modal */}
-      {showSeasons && !seasonTorrentQuery && (
-        <div className={styles.modalOverlay} onClick={() => setShowSeasons(false)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+      {showSeasons && !torrentQuery && (
+        <div className={styles.modalOverlay} onClick={() => { setShowSeasons(false); setExpandedSeason(null) }}>
+          <div className={styles.seasonModal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>{detail?.title} — Seasons</h3>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowSeasons(false)}><X size={16} /></button>
+              <h3>{detail?.title}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShowSeasons(false); setExpandedSeason(null) }}><X size={16} /></button>
             </div>
-            <div className={styles.modalBody}>
+            <div className={styles.seasonModalBody}>
               {loadingSeasons ? (
                 <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading seasons...</div>
               ) : seasons.length === 0 ? (
                 <div className="empty-state" style={{ padding: 16 }}>No season data found</div>
               ) : (
-                <div>
-                  {seasons.map((s: any) => (
-                    <div key={s.season_number} className={styles.seasonRow}>
-                      <div className={styles.seasonInfo}>
-                        <span className={styles.seasonName}>{s.name}</span>
-                        <span className={styles.seasonMeta}>
-                          {s.existing_count > 0 ? `${s.existing_count}/${s.episode_count} episodes` : `${s.episode_count} episodes`}
-                        </span>
-                        {s.complete && <span className="badge green">Complete</span>}
-                        {s.existing_count > 0 && !s.complete && (
-                          <span className="badge orange">{s.episode_count - s.existing_count} missing</span>
+                <div className={styles.seasonList}>
+                  {seasons.map((s: any) => {
+                    const isExpanded = expandedSeason === s.season_number
+                    const missingEps = (s.episodes || []).filter((e: any) => !e.in_library)
+                    return (
+                      <div key={s.season_number} className={styles.seasonBlock}>
+                        {/* Season header */}
+                        <div
+                          className={`${styles.seasonHeader} ${s.complete ? styles.seasonComplete : ''}`}
+                          onClick={() => setExpandedSeason(isExpanded ? null : s.season_number)}
+                        >
+                          <span className={styles.seasonChevron}>
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </span>
+                          <span className={styles.seasonName}>{s.name}</span>
+                          <span className={styles.seasonMeta}>
+                            {s.existing_count}/{s.episode_count} eps
+                          </span>
+                          {s.complete && <span className="badge green"><Check size={10} /> Complete</span>}
+                          {s.existing_count > 0 && !s.complete && (
+                            <span className="badge orange">{missingEps.length} missing</span>
+                          )}
+                          {!s.complete && (
+                            <button
+                              className={`btn btn-sm ${styles.seasonDlBtn}`}
+                              onClick={(e) => { e.stopPropagation(); setTorrentCategory('tv'); setTorrentQuery(s.torrent_query) }}
+                            >
+                              <Download size={12} /> Full Season
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Episode list (expanded) */}
+                        {isExpanded && (
+                          <div className={styles.episodeList}>
+                            {(s.episodes || []).map((ep: any) => (
+                              <div key={ep.episode_number} className={`${styles.episodeRow} ${ep.in_library ? styles.episodeOwned : ''}`}>
+                                <span className={styles.episodeNum}>E{String(ep.episode_number).padStart(2, '0')}</span>
+                                <span className={styles.episodeName}>{ep.name}</span>
+                                {ep.runtime > 0 && <span className={styles.episodeRuntime}>{ep.runtime}m</span>}
+                                {ep.in_library ? (
+                                  <span className={styles.episodeCheck}><Check size={14} /></span>
+                                ) : (
+                                  <button
+                                    className={`btn btn-sm ${styles.episodeDlBtn}`}
+                                    onClick={() => { setTorrentCategory('tv'); setTorrentQuery(ep.torrent_query) }}
+                                  >
+                                    <Download size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {!s.complete && (
-                        <button className="btn btn-sm" style={{ background: 'rgba(48,209,88,0.1)', color: '#30d158' }}
-                          onClick={() => setSeasonTorrentQuery(s.torrent_query)}>
-                          <Plus size={12} /> Find Torrent
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

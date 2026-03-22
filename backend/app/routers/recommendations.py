@@ -592,21 +592,53 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
     except Exception:
         pass
 
-    # Build result with per-season status
+    # Fetch episode details per season from TMDB (parallel)
+    def _fetch_season_episodes(sn):
+        data = tmdb_svc.fetch(f"/tv/{tmdb_id}/season/{sn}")
+        eps = []
+        for ep in data.get("episodes", []):
+            eps.append({
+                "episode_number": ep.get("episode_number", 0),
+                "name": ep.get("name", ""),
+                "runtime": ep.get("runtime") or 0,
+                "air_date": ep.get("air_date", ""),
+                "overview": (ep.get("overview") or "")[:150],
+            })
+        return sn, eps
+
+    season_numbers = [ts["season_number"] for ts in tmdb_seasons]
+    tmdb_episodes = {}  # {season_number: [episode_list]}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+        futures = [pool.submit(_fetch_season_episodes, sn) for sn in season_numbers]
+        for f in concurrent.futures.as_completed(futures):
+            sn, eps = f.result()
+            tmdb_episodes[sn] = eps
+
+    # Build result with per-season status and episode details
     seasons = []
     for ts in tmdb_seasons:
         sn = ts["season_number"]
-        existing_eps = sorted(jellyfin_seasons.get(sn, []))
+        existing_eps = set(jellyfin_seasons.get(sn, []))
         total_eps = ts["episode_count"]
         has_all = len(existing_eps) >= total_eps and total_eps > 0
         sn_padded = f"S{sn:02d}"
 
+        episodes = []
+        for ep in tmdb_episodes.get(sn, []):
+            en = ep["episode_number"]
+            episodes.append({
+                **ep,
+                "in_library": en in existing_eps,
+                "torrent_query": f"{series_title} {sn_padded}E{en:02d}",
+            })
+
         seasons.append({
             **ts,
-            "existing_episodes": existing_eps,
+            "existing_episodes": sorted(existing_eps),
             "existing_count": len(existing_eps),
             "complete": has_all,
             "torrent_query": f"{series_title} {sn_padded} complete",
+            "episodes": episodes,
         })
 
     return {
