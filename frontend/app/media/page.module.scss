@@ -1,106 +1,323 @@
 @use '../../styles/variables' as *;
 
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-3xl;
+  color: var(--text-tertiary);
+}
+
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+// Stats
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: $space-lg;
-  @include mobile { grid-template-columns: repeat(3, 1fr); gap: $space-sm; }
+  gap: $space-md;
+
+  @include mobile { gap: $space-sm; }
 }
 
 .statCard {
   @include card;
+  padding: $space-xl;
   text-align: center;
-  padding: $space-3xl $space-xl;
-  transition: transform $duration-normal $ease-smooth, box-shadow $duration-normal, border-color $duration-normal;
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--glass-shadow-lg);
-    border-color: var(--card-interactive-hover-border);
-  }
-
-  @include mobile {
-    padding: $space-lg $space-sm;
-  }
-}
-
-.statIcon {
-  margin-bottom: $space-md;
-  opacity: 0.7;
-  transition: transform $duration-normal $ease-spring, opacity $duration-normal;
-  .statCard:hover & { transform: scale(1.2); opacity: 1; }
-
-  @include mobile {
-    margin-bottom: $space-xs;
-  }
-}
-
-.statNum {
-  font-size: $text-4xl;
-  font-weight: 700;
-  color: var(--text-primary);
-  font-family: $font-rounded;
-  letter-spacing: -0.04em;
-
-  @include mobile {
-    font-size: $text-2xl;
-  }
-}
-
-.statLabel {
-  font-size: $text-xs;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-  margin-top: $space-xs;
-}
-
-.playingList { display: flex; flex-direction: column; gap: $space-sm; }
-
-.playingItem {
-  @include card;
-  padding: $space-lg $space-xl;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: $space-md;
-  background: rgba($green, 0.04);
-  border: 1px solid rgba($green, 0.08);
-  transition: border-color $duration-normal, box-shadow $duration-normal;
+  gap: $space-xs;
 
-  &:hover {
-    border-color: rgba($green, 0.15);
-    box-shadow: 0 0 20px rgba($green, 0.06);
-  }
+  @include mobile { padding: $space-lg $space-sm; }
 }
 
-.npDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: $green;
-  box-shadow: 0 0 10px rgba($green, 0.5);
-  animation: pulse 1.5s ease infinite;
+.statIcon { opacity: 0.9; }
+.statNum { font-size: $text-2xl; font-weight: 700; color: var(--text-primary); font-family: $font-mono; }
+.statLabel { font-size: $text-xs; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+// Now Playing
+.nowPlayingList {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+.npCard {
+  @include card;
+  display: flex;
+  gap: $space-lg;
+  padding: $space-lg;
+  align-items: center;
+}
+
+.npPoster {
+  width: 60px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: $radius-sm;
   flex-shrink: 0;
 }
 
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.npPosterEmpty {
+  width: 60px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: $radius-sm;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
 
-.npUser { color: $green; font-weight: 600; }
-.npTitle { font-weight: 500; color: var(--text-primary); }
-.npDevice { font-size: $text-xs; color: var(--text-tertiary); margin-top: 2px; }
+.npInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-.mediaItem {
+.npTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: $text-base;
+}
+
+.npMeta {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+}
+
+.npProgress {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-top: 4px;
+}
+
+.npPct {
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-secondary);
+  width: 32px;
+  text-align: right;
+}
+
+// Poster scroll (continue watching, next up)
+.posterScroll {
+  display: flex;
+  gap: $space-md;
+  overflow-x: auto;
+  padding-bottom: $space-sm;
+  scroll-snap-type: x mandatory;
+
+  &::-webkit-scrollbar { height: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: var(--text-tertiary); border-radius: 2px; }
+}
+
+.posterCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 130px;
+  max-width: 130px;
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+.posterWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+}
+
+.posterImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.posterEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.posterProgress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.posterProgressFill {
+  height: 100%;
+  background: $green;
+  border-radius: 0 2px 0 0;
+}
+
+.posterTitle {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.posterMeta {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Library grid (recently added)
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: $space-md;
+
+  @include mobile {
+    grid-template-columns: repeat(3, 1fr);
+    gap: $space-sm;
+  }
+}
+
+.libCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.libPosterWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: $radius-sm;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.libPoster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.libPosterEmpty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.libWatched {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: $green;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.libRating {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  color: $orange;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: $font-mono;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.libTitle {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.libMeta {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+// Genre chart
+.genreChart {
+  @include card;
+  padding: $space-lg $space-xl;
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+.genreRow {
   display: flex;
   align-items: center;
   gap: $space-md;
-  padding: $space-md $space-xl;
-  border-bottom: 1px solid var(--row-border);
-  transition: background $duration-fast, padding-left $duration-normal $ease-smooth;
-
-  &:last-child { border-bottom: none; }
-  &:hover { background: var(--row-border); padding-left: 24px; }
 }
 
-.mediaName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: $text-sm; color: var(--text-primary); }
-.mediaTime { font-size: $text-xs; color: var(--text-tertiary); flex-shrink: 0; }
+.genreName {
+  width: 100px;
+  font-size: $text-sm;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: right;
+  flex-shrink: 0;
+
+  @include mobile { width: 70px; font-size: $text-xs; }
+}
+
+.genreBarWrap {
+  flex: 1;
+  height: 20px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.genreBar {
+  height: 100%;
+  background: linear-gradient(90deg, rgba($blue, 0.6), rgba($blue, 0.3));
+  border-radius: 4px;
+  min-width: 4px;
+  transition: width 0.6s $ease-smooth;
+}
+
+.genreCount {
+  width: 28px;
+  font-family: $font-mono;
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  text-align: right;
+  flex-shrink: 0;
+}
