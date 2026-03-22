@@ -1,5 +1,41 @@
 @use '../../../../styles/variables' as *;
 
+// Breadcrumb navigation
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  flex: 1;
+  min-width: 0;
+}
+
+.breadcrumbLink {
+  font-size: $text-sm;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color $duration-fast;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--blue);
+  }
+}
+
+.breadcrumbSep {
+  font-size: $text-sm;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.breadcrumbCurrent {
+  font-size: $text-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .detailPage {
   max-width: $max-content;
   margin: 0 auto;
@@ -156,7 +192,7 @@
   gap: $space-md;
 
   @include mobile {
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: $space-sm;
   }
 }
@@ -225,7 +261,7 @@
   gap: $space-md;
 
   @include mobile {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: $space-sm;
   }
 }

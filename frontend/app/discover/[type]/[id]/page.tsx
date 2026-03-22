@@ -150,14 +150,27 @@ export default function MovieDetailPage() {
     return h > 0 ? `${h}h ${m}m` : `${m}m`
   }
 
+  const navBar = (
+    <header className="page-header">
+      <nav className={styles.breadcrumb}>
+        <button className="btn btn-ghost btn-sm" onClick={() => router.back()} title="Go back">
+          <ArrowLeft size={16} />
+        </button>
+        <Link href="/" className={styles.breadcrumbLink}>Home</Link>
+        <span className={styles.breadcrumbSep}>/</span>
+        <Link href="/discover" className={styles.breadcrumbLink}>Discover</Link>
+        <span className={styles.breadcrumbSep}>/</span>
+        <span className={styles.breadcrumbCurrent}>
+          {detail ? detail.title : (type === 'tv' ? 'Series' : 'Movie')}
+        </span>
+      </nav>
+    </header>
+  )
+
   if (loading) {
     return (
       <>
-        <header className="page-header">
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push('/discover')}>
-            <ArrowLeft size={16} /> Discover
-          </button>
-        </header>
+        {navBar}
         <div className="page-body">
           <div className={styles.loadingState}><Loader2 size={24} className={styles.spinner} /> Loading details...</div>
         </div>
@@ -168,11 +181,7 @@ export default function MovieDetailPage() {
   if (!detail) {
     return (
       <>
-        <header className="page-header">
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push('/discover')}>
-            <ArrowLeft size={16} /> Discover
-          </button>
-        </header>
+        {navBar}
         <div className="page-body">
           <div className="empty-state">Could not load movie details</div>
         </div>
@@ -199,19 +208,7 @@ export default function MovieDetailPage() {
 
   return (
     <>
-      <header className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push('/discover')}>
-            <ArrowLeft size={16} /> Discover
-          </button>
-          <h1 className="page-title">{detail.title}</h1>
-        </div>
-        <div className="page-meta">
-          <span className={`badge ${detail.type === 'tv' ? 'purple' : 'blue'}`}>
-            {detail.type === 'tv' ? <><Tv size={10} /> Series</> : <><Film size={10} /> Movie</>}
-          </span>
-        </div>
-      </header>
+      {navBar}
 
       <div className={styles.detailPage}>
         {/* Hero section */}
