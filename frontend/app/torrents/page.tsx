@@ -85,7 +85,10 @@ export default function TorrentsPage() {
 
   async function addTorrent(hash: string, name: string) {
     const magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(name)}`
-    const r = await api('/api/torrent-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ magnet }) })
+    // Auto-detect series by name pattern (S01, Season, etc.) and set category
+    const isSeries = /\bS\d{1,2}|season\s*\d/i.test(name)
+    const category = isSeries ? 'tv' : 'movies'
+    const r = await api('/api/torrent-add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ magnet, category }) })
     toast(r.error ? r.error : `Added: ${name.substring(0, 50)}`, r.error ? 'error' : 'success')
     setResults(null)
     setQuery('')

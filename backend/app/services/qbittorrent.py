@@ -104,6 +104,16 @@ def search_torrents(query: str) -> dict | list:
 def add_torrent(magnet: str, category: str = "") -> dict:
     if not magnet.startswith("magnet:"):
         return {"error": "Invalid magnet link"}
+    # Auto-detect category from magnet display name if not provided
+    if not category:
+        import re
+        dn_match = re.search(r'dn=([^&]+)', magnet)
+        if dn_match:
+            dn = urllib.parse.unquote(dn_match.group(1))
+            if re.search(r'\bS\d{1,2}|[Ss]eason\s*\d', dn):
+                category = "tv"
+            else:
+                category = "movies"
     post_data = urllib.parse.urlencode({"urls": magnet, "category": category})
     return request("/torrents/add", method="POST", body=post_data)
 
