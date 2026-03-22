@@ -23,8 +23,6 @@ Jarvis integrates a recommendation engine directly into the dashboard. Browse by
 
 ![Discover](./docs/screenshots/discover-dark.png)
 
-![Library Recommendations](./docs/screenshots/discover-library-dark.png)
-
 ![Trending](./docs/screenshots/discover-trending-dark.png)
 
 **Detail Pages** — Full TMDB metadata with poster, backdrop, synopsis, cast, ratings, and related titles. Breadcrumb navigation throughout.

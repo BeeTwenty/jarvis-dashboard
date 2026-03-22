@@ -169,6 +169,13 @@
   }
 }
 
+.playBtn {
+  background: $green !important;
+  color: white !important;
+  text-decoration: none !important;
+  &:hover { background: darken($green, 8%) !important; }
+}
+
 // Content sections
 .section {
   padding: 0 $space-2xl $space-2xl;

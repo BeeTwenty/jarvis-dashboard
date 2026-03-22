@@ -7,7 +7,7 @@ import { api, fmtBytes } from '@/lib/api'
 import { toast } from '@/lib/toast'
 import {
   ArrowLeft, Star, Clock, Film, Tv, Plus, X, ArrowUp, ArrowDown, Loader2, Search,
-  ChevronDown, ChevronRight, Check, Download
+  ChevronDown, ChevronRight, Check, Download, Play
 } from 'lucide-react'
 import styles from './page.module.scss'
 
@@ -131,6 +131,7 @@ export default function MovieDetailPage() {
   const [seasons, setSeasons] = useState<any[]>([])
   const [loadingSeasons, setLoadingSeasons] = useState(false)
   const [expandedSeason, setExpandedSeason] = useState<number | null>(null)
+  const [libraryInfo, setLibraryInfo] = useState<{ in_library: boolean; jellyfin_url?: string } | null>(null)
 
   const type = params.type as string
   const id = params.id as string
@@ -142,6 +143,11 @@ export default function MovieDetailPage() {
       setLoading(false)
       if (r.data && !r.data.error) {
         setDetail(r.data)
+        // Check if in Jellyfin library
+        const lib = await api<{ in_library: boolean; jellyfin_url?: string }>(
+          `/api/jellyfin-media/library-check?tmdb_id=${id}&media_type=${type}`
+        )
+        if (lib.data) setLibraryInfo(lib.data)
       } else {
         toast(r.error || r.data?.error || 'Failed to load details', 'error')
       }
@@ -248,8 +254,13 @@ export default function MovieDetailPage() {
                   <div className={styles.heroDirector}>Directed by <strong>{detail.director}</strong></div>
                 )}
                 <div className={styles.heroActions}>
+                  {libraryInfo?.in_library && libraryInfo.jellyfin_url && (
+                    <a href={libraryInfo.jellyfin_url} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
+                      <Play size={14} /> Play on Jellyfin
+                    </a>
+                  )}
                   <button
-                    className={`btn btn-primary`}
+                    className={`btn ${libraryInfo?.in_library ? 'btn-ghost' : 'btn-primary'}`}
                     onClick={async () => {
                       if (detail.type === 'tv') {
                         setLoadingSeasons(true)

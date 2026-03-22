@@ -2,38 +2,86 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { api } from '@/lib/api'
+import { api, timeAgo } from '@/lib/api'
 import {
-  Film, Tv, Clapperboard, MonitorPlay, Play, Clock, Star,
-  CheckCircle, Loader2, ChevronRight
+  Film, Tv, Clapperboard, MonitorPlay, Play, Clock, Star, Eye, EyeOff,
+  CheckCircle, Loader2, ChevronRight, ExternalLink, Library, BarChart3
 } from 'lucide-react'
 import styles from './page.module.scss'
 
+interface LibItem {
+  id: string; name: string; type: string; year: string;
+  rating: number | null; official_rating: string; runtime_min: number | null;
+  genres: string[]; overview: string; poster: string;
+  played: boolean; favorite: boolean; tmdb_id: string;
+  jellyfin_url: string; season_count: number | null;
+  progress: number | null; episode_title?: string; date_played?: string;
+}
+
+interface NowPlaying {
+  user: string; client: string; device: string; title: string;
+  type: string; progress: number; poster: string; is_paused: boolean;
+  jellyfin_url: string;
+}
+
+interface NextUp {
+  id: string; series_name: string; season: number; episode: number;
+  name: string; overview: string; runtime_min: number; poster: string;
+  jellyfin_url: string;
+}
+
 interface MediaOverview {
   counts: { MovieCount: number; SeriesCount: number; EpisodeCount: number } | null
-  continue_watching: {
-    id: string; name: string; type: string; progress: number;
-    runtime_min: number; poster: string
-  }[]
-  now_playing: {
-    user: string; client: string; device: string; title: string;
-    type: string; progress: number; poster: string; is_paused: boolean
-  }[]
-  next_up: {
-    id: string; series_name: string; season: number; episode: number;
-    name: string; overview: string; runtime_min: number; poster: string
-  }[]
-  recently_added: {
-    id: string; name: string; type: string; year: string; rating: number | null;
-    runtime_min: number | null; genres: string[]; overview: string;
-    poster: string; played: boolean; season_count: number | null
-  }[]
+  continue_watching: LibItem[]
+  now_playing: NowPlaying[]
+  next_up: NextUp[]
+  unwatched: LibItem[]
+  watch_history: LibItem[]
+  library: LibItem[]
   genres: { name: string; count: number }[]
+  total_runtime_hours: number
+}
+
+function PosterCard({ item, showProgress, subtitle }: { item: LibItem; showProgress?: boolean; subtitle?: string }) {
+  const isMovie = item.type === 'Movie'
+  const detailHref = item.tmdb_id
+    ? `/discover/${isMovie ? 'movie' : 'tv'}/${item.tmdb_id}`
+    : '#'
+
+  return (
+    <div className={styles.posterCard}>
+      <Link href={detailHref} className={styles.posterWrap}>
+        {item.poster ? (
+          <img src={item.poster} alt={item.name} className={styles.posterImg} loading="lazy" />
+        ) : (
+          <div className={styles.posterEmpty}>{isMovie ? <Film size={24} /> : <Tv size={24} />}</div>
+        )}
+        {showProgress && item.progress != null && item.progress > 0 && (
+          <div className={styles.posterProgress}>
+            <div className={styles.posterProgressFill} style={{ width: `${item.progress}%` }} />
+          </div>
+        )}
+        {item.played && !showProgress && (
+          <div className={styles.watchedBadge}><CheckCircle size={14} /></div>
+        )}
+        {item.rating && (
+          <div className={styles.ratingBadge}><Star size={9} /> {item.rating.toFixed(1)}</div>
+        )}
+      </Link>
+      <a href={item.jellyfin_url} target="_blank" rel="noopener" className={styles.posterTitle}>
+        {item.name}
+      </a>
+      <span className={styles.posterMeta}>
+        {subtitle || (showProgress && item.progress != null ? `${item.progress}%` : item.year)}
+      </span>
+    </div>
+  )
 }
 
 export default function MediaPage() {
   const [data, setData] = useState<MediaOverview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'movie' | 'series' | 'unwatched'>('all')
 
   useEffect(() => {
     async function load() {
@@ -64,9 +112,16 @@ export default function MediaPage() {
     )
   }
 
-  const { counts, continue_watching, now_playing, next_up, recently_added, genres } = data
+  const { counts, continue_watching, now_playing, next_up, unwatched, watch_history, library, genres, total_runtime_hours } = data
   const topGenres = genres.slice(0, 8)
   const maxGenreCount = topGenres[0]?.count || 1
+
+  const filteredLibrary = library.filter(item => {
+    if (libraryFilter === 'movie') return item.type === 'Movie'
+    if (libraryFilter === 'series') return item.type === 'Series'
+    if (libraryFilter === 'unwatched') return !item.played
+    return true
+  })
 
   return (
     <>
@@ -80,20 +135,31 @@ export default function MediaPage() {
       </header>
 
       <div className="page-body">
-        {/* Stats */}
-        <div className="section">
-          <div className={styles.statsGrid}>
-            {[
-              { n: counts.MovieCount ?? 0, l: 'Movies', Icon: Film, color: '#0a84ff' },
-              { n: counts.SeriesCount ?? 0, l: 'Series', Icon: Tv, color: '#30d158' },
-              { n: counts.EpisodeCount ?? 0, l: 'Episodes', Icon: Clapperboard, color: '#bf5af2' },
-            ].map(s => (
-              <div key={s.l} className={styles.statCard}>
-                <div className={styles.statIcon} style={{ color: s.color }}><s.Icon size={20} /></div>
-                <div className={styles.statNum}>{s.n.toLocaleString()}</div>
-                <div className={styles.statLabel}>{s.l}</div>
-              </div>
-            ))}
+        {/* Stats bar */}
+        <div className={styles.statsBar}>
+          <div className={styles.stat}>
+            <Film size={16} className={styles.statIcon} style={{ color: '#0a84ff' }} />
+            <span className={styles.statNum}>{counts.MovieCount}</span>
+            <span className={styles.statLabel}>Movies</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.stat}>
+            <Tv size={16} className={styles.statIcon} style={{ color: '#30d158' }} />
+            <span className={styles.statNum}>{counts.SeriesCount}</span>
+            <span className={styles.statLabel}>Series</span>
+            <span className={styles.statSub}>{counts.EpisodeCount} eps</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.stat}>
+            <Clock size={16} className={styles.statIcon} style={{ color: '#bf5af2' }} />
+            <span className={styles.statNum}>{total_runtime_hours}</span>
+            <span className={styles.statLabel}>Hours</span>
+          </div>
+          <div className={styles.statDivider} />
+          <div className={styles.stat}>
+            <Eye size={16} className={styles.statIcon} style={{ color: '#ff9f0a' }} />
+            <span className={styles.statNum}>{library.filter(i => i.played).length}</span>
+            <span className={styles.statLabel}>Watched</span>
           </div>
         </div>
 
@@ -101,9 +167,9 @@ export default function MediaPage() {
         {now_playing.length > 0 && (
           <div className="section">
             <h3 className="section-title"><MonitorPlay size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Now Playing</h3>
-            <div className={styles.nowPlayingList}>
+            <div className={styles.npList}>
               {now_playing.map((s, i) => (
-                <div key={i} className={styles.npCard}>
+                <a key={i} href={s.jellyfin_url} target="_blank" rel="noopener" className={styles.npCard}>
                   {s.poster ? (
                     <img src={s.poster} alt={s.title} className={styles.npPoster} />
                   ) : (
@@ -111,8 +177,8 @@ export default function MediaPage() {
                   )}
                   <div className={styles.npInfo}>
                     <span className={styles.npTitle}>{s.title}</span>
-                    <span className={styles.npMeta}>{s.user} on {s.device}</span>
-                    <div className={styles.npProgress}>
+                    <span className={styles.npDevice}>{s.user} on {s.device}</span>
+                    <div className={styles.npProgressRow}>
                       <div className="progress" style={{ flex: 1 }}>
                         <div className="progress-fill green" style={{ width: `${s.progress}%` }} />
                       </div>
@@ -120,7 +186,7 @@ export default function MediaPage() {
                       {s.is_paused && <span className="badge gray">Paused</span>}
                     </div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           </div>
@@ -130,22 +196,9 @@ export default function MediaPage() {
         {continue_watching.length > 0 && (
           <div className="section">
             <h3 className="section-title"><Play size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Continue Watching</h3>
-            <div className={styles.posterScroll}>
+            <div className={styles.scrollRow}>
               {continue_watching.map((item, i) => (
-                <div key={i} className={styles.posterCard}>
-                  <div className={styles.posterWrap}>
-                    {item.poster ? (
-                      <img src={item.poster} alt={item.name} className={styles.posterImg} loading="lazy" />
-                    ) : (
-                      <div className={styles.posterEmpty}><Film size={24} /></div>
-                    )}
-                    <div className={styles.posterProgress}>
-                      <div className={styles.posterProgressFill} style={{ width: `${item.progress}%` }} />
-                    </div>
-                  </div>
-                  <span className={styles.posterTitle}>{item.name}</span>
-                  <span className={styles.posterMeta}>{item.progress}% · {item.runtime_min}m</span>
-                </div>
+                <PosterCard key={i} item={item} showProgress subtitle={item.episode_title || `${item.progress}% · ${item.runtime_min}m`} />
               ))}
             </div>
           </div>
@@ -155,16 +208,17 @@ export default function MediaPage() {
         {next_up.length > 0 && (
           <div className="section">
             <h3 className="section-title"><ChevronRight size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Next Up</h3>
-            <div className={styles.posterScroll}>
+            <div className={styles.scrollRow}>
               {next_up.map((item, i) => (
                 <div key={i} className={styles.posterCard}>
-                  <div className={styles.posterWrap}>
+                  <a href={item.jellyfin_url} target="_blank" rel="noopener" className={styles.posterWrap}>
                     {item.poster ? (
                       <img src={item.poster} alt={item.name} className={styles.posterImg} loading="lazy" />
                     ) : (
                       <div className={styles.posterEmpty}><Tv size={24} /></div>
                     )}
-                  </div>
+                    <div className={styles.playOverlay}><Play size={28} /></div>
+                  </a>
                   <span className={styles.posterTitle}>{item.series_name}</span>
                   <span className={styles.posterMeta}>S{item.season}E{item.episode} · {item.name}</span>
                 </div>
@@ -173,58 +227,70 @@ export default function MediaPage() {
           </div>
         )}
 
-        {/* Recently Added */}
-        {recently_added.length > 0 && (
+        {/* Unwatched */}
+        {unwatched.length > 0 && (
           <div className="section">
-            <h3 className="section-title">Recently Added</h3>
-            <div className={styles.libraryGrid}>
-              {recently_added.map((item, i) => {
-                const isMovie = item.type === 'Movie'
-                const href = isMovie
-                  ? `/discover/movie/${item.id}`
-                  : `/discover/tv/${item.id}`
-                return (
-                  <div key={i} className={styles.libCard}>
-                    <div className={styles.libPosterWrap}>
-                      {item.poster ? (
-                        <img src={item.poster} alt={item.name} className={styles.libPoster} loading="lazy" />
-                      ) : (
-                        <div className={styles.libPosterEmpty}>{isMovie ? <Film size={24} /> : <Tv size={24} />}</div>
-                      )}
-                      {item.played && (
-                        <div className={styles.libWatched}><CheckCircle size={16} /></div>
-                      )}
-                      {item.rating && (
-                        <div className={styles.libRating}><Star size={10} /> {item.rating.toFixed(1)}</div>
-                      )}
-                    </div>
-                    <span className={styles.libTitle}>{item.name}</span>
-                    <div className={styles.libMeta}>
-                      {item.year && <span className="badge gray">{item.year}</span>}
-                      <span className={`badge ${isMovie ? 'blue' : 'green'}`}>
-                        {isMovie ? 'Movie' : `${item.season_count || '?'} Seasons`}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
+            <h3 className="section-title"><EyeOff size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Unwatched ({unwatched.length})</h3>
+            <div className={styles.scrollRow}>
+              {unwatched.slice(0, 15).map((item, i) => (
+                <PosterCard key={i} item={item} />
+              ))}
             </div>
           </div>
         )}
 
+        {/* Watch History */}
+        {watch_history.length > 0 && (
+          <div className="section">
+            <h3 className="section-title"><Eye size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Recently Watched</h3>
+            <div className={styles.scrollRow}>
+              {watch_history.map((item, i) => (
+                <PosterCard key={i} item={item} subtitle={item.date_played ? timeAgo(item.date_played) : ''} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Full Library */}
+        <div className="section">
+          <div className={styles.libHeader}>
+            <h3 className="section-title" style={{ margin: 0 }}>
+              <Library size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Library
+            </h3>
+            <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+              {([
+                { id: 'all' as const, label: 'All' },
+                { id: 'movie' as const, label: 'Movies' },
+                { id: 'series' as const, label: 'Series' },
+                { id: 'unwatched' as const, label: 'Unwatched' },
+              ]).map(f => (
+                <button key={f.id} className={`segment-btn ${libraryFilter === f.id ? 'active' : ''}`}
+                  onClick={() => setLibraryFilter(f.id)}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.libraryGrid}>
+            {filteredLibrary.map((item, i) => (
+              <PosterCard key={i} item={item} />
+            ))}
+          </div>
+          {filteredLibrary.length === 0 && (
+            <div className="empty-state" style={{ padding: 24 }}>No items match this filter</div>
+          )}
+        </div>
+
         {/* Genre Breakdown */}
         {topGenres.length > 0 && (
           <div className="section">
-            <h3 className="section-title">Library by Genre</h3>
+            <h3 className="section-title"><BarChart3 size={16} style={{ marginRight: 6, verticalAlign: -3 }} /> Genres</h3>
             <div className={styles.genreChart}>
               {topGenres.map(g => (
                 <div key={g.name} className={styles.genreRow}>
                   <span className={styles.genreName}>{g.name}</span>
                   <div className={styles.genreBarWrap}>
-                    <div
-                      className={styles.genreBar}
-                      style={{ width: `${(g.count / maxGenreCount) * 100}%` }}
-                    />
+                    <div className={styles.genreBar} style={{ width: `${(g.count / maxGenreCount) * 100}%` }} />
                   </div>
                   <span className={styles.genreCount}>{g.count}</span>
                 </div>
