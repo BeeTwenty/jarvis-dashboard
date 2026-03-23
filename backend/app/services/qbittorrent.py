@@ -1,4 +1,5 @@
 import json
+import re
 import urllib.parse
 
 import httpx
@@ -53,50 +54,68 @@ def request(path: str, method: str = "GET", body: str | None = None, retry: bool
         return {"error": f"qBittorrent: {e}"}
 
 
+def _clean_query(query: str) -> str:
+    """Strip special characters that break torrent search APIs."""
+    cleaned = re.sub(r"[''\",:!?()&]", " ", query)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _clean_query_variants(query: str) -> list[str]:
+    """Return a list of query variants to try, most specific first."""
+    clean = _clean_query(query)
+    variants = [clean]
+    # Strip "S01 complete" and try just the title
+    alt = re.sub(r"\s+S\d{1,2}\s+complete", "", clean, flags=re.IGNORECASE).strip()
+    if alt != clean:
+        variants.append(alt)
+    # Try with "season 1" instead
+    if re.search(r"S\d{1,2}", clean, re.IGNORECASE):
+        alt2 = re.sub(r"S(\d{1,2})\s*complete", r"season \1", clean, flags=re.IGNORECASE).strip()
+        if alt2 not in variants:
+            variants.append(alt2)
+    return variants
+
+
 def _search_apibay(query: str) -> list:
     """Search apibay for a single query. Returns list of result dicts."""
-    client = httpx.Client(timeout=15)
-    resp = client.get(
-        f"https://apibay.org/q.php?q={urllib.parse.quote(query)}",
-        headers={"User-Agent": "Mozilla/5.0"},
-    )
-    results = resp.json()
-    if not isinstance(results, list):
+    try:
+        client = httpx.Client(timeout=15)
+        resp = client.get(
+            f"https://apibay.org/q.php?q={urllib.parse.quote(query)}",
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        results = resp.json()
+        if not isinstance(results, list):
+            return []
+        filtered = []
+        for r in results[:20]:
+            if r.get("id") == "0" or r.get("name") == "No results returned":
+                continue
+            filtered.append({
+                "name": r.get("name", "Unknown"),
+                "size": int(r.get("size", 0)),
+                "seeders": int(r.get("seeders", 0)),
+                "leechers": int(r.get("leechers", 0)),
+                "info_hash": r.get("info_hash", ""),
+                "added": r.get("added", ""),
+                "category": r.get("category", ""),
+            })
+        return filtered
+    except Exception:
         return []
-    filtered = []
-    for r in results[:20]:
-        if r.get("id") == "0" or r.get("name") == "No results returned":
-            continue
-        filtered.append({
-            "name": r.get("name", "Unknown"),
-            "size": int(r.get("size", 0)),
-            "seeders": int(r.get("seeders", 0)),
-            "leechers": int(r.get("leechers", 0)),
-            "info_hash": r.get("info_hash", ""),
-            "added": r.get("added", ""),
-            "category": r.get("category", ""),
-        })
-    return filtered
 
 
 def search_torrents(query: str) -> dict | list:
     try:
-        results = _search_apibay(query)
+        variants = _clean_query_variants(query)
 
-        # If no results, try alternate queries (helps for series)
-        if not results:
-            # Strip "S01 complete" and try just the title
-            alt = query.replace(" S01 complete", "").replace(" complete", "").strip()
-            if alt != query:
-                results = _search_apibay(alt)
+        for variant in variants:
+            results = _search_apibay(variant)
+            if results:
+                results.sort(key=lambda x: x["seeders"], reverse=True)
+                return results
 
-        # Still nothing? Try with "season 1"
-        if not results and "S01" in query:
-            alt = query.replace("S01 complete", "season 1").strip()
-            results = _search_apibay(alt)
-
-        results.sort(key=lambda x: x["seeders"], reverse=True)
-        return results
+        return []
     except Exception as e:
         return {"error": str(e)}
 
@@ -114,7 +133,6 @@ def add_torrent(magnet: str, category: str = "") -> dict:
         return {"error": "Invalid magnet link"}
     # Auto-detect category from magnet display name if not provided
     if not category:
-        import re
         dn_match = re.search(r'dn=([^&]+)', magnet)
         if dn_match:
             dn = urllib.parse.unquote(dn_match.group(1))
