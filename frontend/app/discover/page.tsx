@@ -457,7 +457,12 @@ export default function DiscoverPage() {
           </div>
           {globalResults.length > 0 && (
             <div className={styles.globalResultsGrid}>
-              {globalResults.map((item, i) => {
+              {[...globalResults].sort((a, b) => {
+                const preferredType = moodMediaType === 'movie' ? 'movie' : 'series'
+                const aMatch = a.type === preferredType ? 0 : 1
+                const bMatch = b.type === preferredType ? 0 : 1
+                return aMatch - bMatch
+              }).map((item, i) => {
                 const href = `/discover/${item.type === 'series' ? 'tv' : 'movie'}/${item.tmdb_id}`
                 return (
                   <Link

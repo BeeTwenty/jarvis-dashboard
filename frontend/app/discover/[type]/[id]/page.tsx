@@ -132,11 +132,7 @@ export default function MovieDetailPage() {
   const [loadingSeasons, setLoadingSeasons] = useState(false)
   const [expandedSeason, setExpandedSeason] = useState<number | null>(null)
   const [libraryInfo, setLibraryInfo] = useState<{ in_library: boolean; jellyfin_id?: string } | null>(null)
-  const [streamInfo, setStreamInfo] = useState<{ available: boolean; show_id?: string; name?: string; episodes_sub?: number; episodes_dub?: number } | null>(null)
-  const [showStreamPicker, setShowStreamPicker] = useState(false)
-  const [streamEpisodes, setStreamEpisodes] = useState<string[]>([])
-  const [loadingStreamEps, setLoadingStreamEps] = useState(false)
-  const [streamMode, setStreamMode] = useState<'sub' | 'dub'>('sub')
+  const [streamInfo, setStreamInfo] = useState<{ available: boolean; show_id?: string; name?: string } | null>(null)
 
   const type = params.type as string
   const id = params.id as string
@@ -154,7 +150,7 @@ export default function MovieDetailPage() {
         )
         if (lib.data) setLibraryInfo(lib.data)
         // Check streaming availability
-        const stream = await api<{ available: boolean; show_id?: string; name?: string; episodes_sub?: number; episodes_dub?: number }>(
+        const stream = await api<{ available: boolean; show_id?: string; name?: string }>(
           `/api/streaming/check?title=${encodeURIComponent(r.data.title)}&type=${type}`
         )
         if (stream.data) setStreamInfo(stream.data)
@@ -270,24 +266,14 @@ export default function MovieDetailPage() {
                     </a>
                   )}
                   {streamInfo?.available && streamInfo.show_id && (
-                    <button
+                    <a
+                      href={`https://allmanga.to/bangumi/${streamInfo.show_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className={`btn ${styles.streamBtn}`}
-                      onClick={async () => {
-                        if ((streamInfo.episodes_sub || 0) <= 1 && (streamInfo.episodes_dub || 0) <= 1) {
-                          // Single episode (movie/OVA) — play directly
-                          window.open(`/stream?show_id=${streamInfo.show_id}&episode=1&mode=sub&title=${encodeURIComponent(detail.title)}`, '_blank')
-                        } else {
-                          // Multiple episodes — show picker
-                          setShowStreamPicker(true)
-                          setLoadingStreamEps(true)
-                          const r = await api<{ episodes: string[] }>(`/api/streaming/episodes?show_id=${streamInfo.show_id}&mode=${streamMode}`)
-                          setLoadingStreamEps(false)
-                          if (r.data?.episodes) setStreamEpisodes(r.data.episodes)
-                        }
-                      }}
                     >
                       <Play size={14} /> Stream
-                    </button>
+                    </a>
                   )}
                   <button
                     className={`btn ${libraryInfo?.in_library ? 'btn-ghost' : 'btn-primary'}`}
@@ -396,61 +382,6 @@ export default function MovieDetailPage() {
         <TorrentSearchModal query={torrentQuery} onClose={() => { setTorrentQuery(null); setTorrentCategory('') }} category={torrentCategory} />
       )}
 
-      {/* Stream episode picker modal */}
-      {showStreamPicker && streamInfo?.show_id && (
-        <div className={styles.modalOverlay} onClick={() => setShowStreamPicker(false)}>
-          <div className={styles.seasonModal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3>Stream: {detail?.title}</h3>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <button
-                  className={`btn btn-sm ${streamMode === 'sub' ? styles.streamBtn : 'btn-ghost'}`}
-                  onClick={async () => {
-                    setStreamMode('sub')
-                    setLoadingStreamEps(true)
-                    const r = await api<{ episodes: string[] }>(`/api/streaming/episodes?show_id=${streamInfo.show_id}&mode=sub`)
-                    setLoadingStreamEps(false)
-                    if (r.data?.episodes) setStreamEpisodes(r.data.episodes)
-                  }}
-                >SUB</button>
-                <button
-                  className={`btn btn-sm ${streamMode === 'dub' ? styles.streamBtn : 'btn-ghost'}`}
-                  onClick={async () => {
-                    setStreamMode('dub')
-                    setLoadingStreamEps(true)
-                    const r = await api<{ episodes: string[] }>(`/api/streaming/episodes?show_id=${streamInfo.show_id}&mode=dub`)
-                    setLoadingStreamEps(false)
-                    if (r.data?.episodes) setStreamEpisodes(r.data.episodes)
-                  }}
-                >DUB</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowStreamPicker(false)}><X size={16} /></button>
-              </div>
-            </div>
-            <div className={styles.seasonModalBody}>
-              {loadingStreamEps ? (
-                <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading episodes...</div>
-              ) : streamEpisodes.length === 0 ? (
-                <div className="empty-state" style={{ padding: 16 }}>No episodes found</div>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '12px 20px' }}>
-                  {streamEpisodes.map(ep => (
-                    <button
-                      key={ep}
-                      className={`btn btn-sm btn-ghost`}
-                      style={{ minWidth: 44, fontFamily: 'var(--font-mono)' }}
-                      onClick={() => {
-                        window.open(`/stream?show_id=${streamInfo.show_id}&episode=${ep}&mode=${streamMode}&title=${encodeURIComponent(detail?.title || '')}`, '_blank')
-                      }}
-                    >
-                      {ep}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Series season picker modal */}
       {showSeasons && !torrentQuery && (

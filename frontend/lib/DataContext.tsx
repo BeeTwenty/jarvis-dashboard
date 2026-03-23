@@ -38,7 +38,6 @@ export function useData() {
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<DashboardData>(empty)
   const mountedRef = useRef(true)
-
   const refreshFast = useCallback(async () => {
     const results = await Promise.allSettled([
       api('/api/system'),

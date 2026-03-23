@@ -23,6 +23,11 @@ uvicorn app.main:app --host 0.0.0.0 --port 8002   # Dev server on :8002
 
 No test or lint tooling is configured.
 
+### After making changes
+After any code change, **always** rebuild/restart the affected server(s), verify they respond (e.g. `curl` the health endpoint), and only then report back to the user. Do not report a change as done without restarting and testing.
+- **Frontend**: Runs in production mode. Must `npm run build` then `npm start` (not `npm run dev`). Kill any existing `next start` process first.
+- **Backend**: Kill existing uvicorn and restart: `source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8002`
+
 ## Architecture
 
 ```
