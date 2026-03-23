@@ -143,7 +143,7 @@ def discover_by_genres(genre_ids: list, media_type: str = "movie", page: int = 1
 
 
 def multi_search(query: str) -> list:
-    data = fetch(f"/search/multi?query={urllib.parse.quote(query)}&include_adult=false")
+    data = fetch(f"/search/multi?query={urllib.parse.quote(query)}")
     results = []
     for item in data.get("results", []):
         media_type = item.get("media_type", "")
