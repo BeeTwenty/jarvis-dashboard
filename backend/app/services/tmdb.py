@@ -143,33 +143,51 @@ def discover_by_genres(genre_ids: list, media_type: str = "movie", page: int = 1
 
 
 def multi_search(query: str) -> list:
-    data = fetch(f"/search/multi?query={urllib.parse.quote(query)}")
+    encoded = urllib.parse.quote(query)
     results = []
-    for item in data.get("results", []):
-        media_type = item.get("media_type", "")
-        if media_type not in ("movie", "tv"):
-            continue
-        if media_type == "movie":
-            title = item.get("title", "")
-            year = (item.get("release_date") or "")[:4]
-            rtype = "movie"
-        else:
-            title = item.get("name", "")
-            year = (item.get("first_air_date") or "")[:4]
-            rtype = "series"
+    seen = set()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        f_movies = pool.submit(fetch, f"/search/movie?query={encoded}")
+        f_tv = pool.submit(fetch, f"/search/tv?query={encoded}")
+
+    for item in f_movies.result().get("results", []):
+        title = item.get("title", "")
         if not title:
             continue
+        tmdb_id = str(item.get("id", ""))
+        if tmdb_id in seen:
+            continue
+        seen.add(tmdb_id)
+        year = (item.get("release_date") or "")[:4]
         poster = f"https://image.tmdb.org/t/p/w500{item['poster_path']}" if item.get("poster_path") else ""
         results.append({
             "title": title, "year": year,
-            "tmdb_id": str(item.get("id", "")),
-            "type": rtype, "poster": poster,
+            "tmdb_id": tmdb_id,
+            "type": "movie", "poster": poster,
             "rating": round(item.get("vote_average", 0), 1),
             "overview": (item.get("overview") or "")[:150],
         })
-        if len(results) >= 20:
-            break
-    return results
+
+    for item in f_tv.result().get("results", []):
+        title = item.get("name", "")
+        if not title:
+            continue
+        tmdb_id = str(item.get("id", ""))
+        if tmdb_id in seen:
+            continue
+        seen.add(tmdb_id)
+        year = (item.get("first_air_date") or "")[:4]
+        poster = f"https://image.tmdb.org/t/p/w500{item['poster_path']}" if item.get("poster_path") else ""
+        results.append({
+            "title": title, "year": year,
+            "tmdb_id": tmdb_id,
+            "type": "series", "poster": poster,
+            "rating": round(item.get("vote_average", 0), 1),
+            "overview": (item.get("overview") or "")[:150],
+        })
+
+    return results[:20]
 
 
 def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
