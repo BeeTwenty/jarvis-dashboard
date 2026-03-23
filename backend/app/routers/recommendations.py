@@ -468,36 +468,42 @@ def get_categories():
 def autocomplete(q: str = ""):
     if not q or len(q) < 2:
         return {"results": []}
-    categories, top100 = wiki_svc.get_kb()
-    query_lower = q.lower().strip()
     results = []
     seen = set()
-    for cat_name, movies in categories.items():
-        for movie in movies:
-            key = movie["title"].lower()
-            if query_lower in key and key not in seen:
-                seen.add(key)
-                results.append({
-                    "title": movie["title"],
-                    "year": movie.get("year", ""),
-                    "tmdb_id": movie.get("tmdb_id", ""),
-                    "type": movie.get("type", "movie"),
-                })
-            if len(results) >= 10:
-                break
+    # TMDB search first
+    tmdb_results = tmdb_svc.multi_search(q)
+    for item in tmdb_results:
+        key = item["title"].lower()
+        if key not in seen:
+            seen.add(key)
+            results.append({
+                "title": item["title"],
+                "year": item.get("year", ""),
+                "tmdb_id": item.get("tmdb_id", ""),
+                "type": item.get("type", "movie"),
+            })
         if len(results) >= 10:
             break
+    # Fill remaining slots from wiki KB
     if len(results) < 10:
-        for movie in top100:
-            key = movie["title"].lower()
-            if query_lower in key and key not in seen:
-                seen.add(key)
-                results.append({
-                    "title": movie["title"],
-                    "year": movie.get("year", ""),
-                    "tmdb_id": movie.get("tmdb_id", ""),
-                    "type": movie.get("type", "movie"),
-                })
+        query_lower = q.lower().strip()
+        categories, top100 = wiki_svc.get_kb()
+        for source in [
+            (movie for movies in categories.values() for movie in movies),
+            top100,
+        ]:
+            for movie in source:
+                key = movie["title"].lower()
+                if query_lower in key and key not in seen:
+                    seen.add(key)
+                    results.append({
+                        "title": movie["title"],
+                        "year": movie.get("year", ""),
+                        "tmdb_id": movie.get("tmdb_id", ""),
+                        "type": movie.get("type", "movie"),
+                    })
+                if len(results) >= 10:
+                    break
             if len(results) >= 10:
                 break
     return {"results": results[:10]}
