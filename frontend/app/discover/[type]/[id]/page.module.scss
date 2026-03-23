@@ -176,6 +176,12 @@
   &:hover { background: darken($green, 8%) !important; }
 }
 
+.streamBtn {
+  background: $purple !important;
+  color: white !important;
+  &:hover { background: darken($purple, 8%) !important; }
+}
+
 // Content sections
 .section {
   padding: 0 $space-2xl $space-2xl;

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import settings
-from app.routers import system, docker, torrents, media, recommendations, files, actions
+from app.routers import system, docker, torrents, media, recommendations, files, actions, streaming
 from app.services import qbittorrent as qbit_svc
 from app.services import system as system_svc
 
@@ -33,3 +33,4 @@ app.include_router(media.router)
 app.include_router(recommendations.router)
 app.include_router(files.router)
 app.include_router(actions.router)
+app.include_router(streaming.router)

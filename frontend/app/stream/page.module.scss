@@ -1,0 +1,377 @@
+@use '../../styles/variables' as *;
+
+.streamPage {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+// Top bar
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: $space-md;
+  padding: $space-sm $space-lg;
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 10;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $text-sm;
+  cursor: pointer;
+  padding: $space-xs $space-sm;
+  border-radius: $radius-sm;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.titleArea {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+}
+
+.showTitle {
+  font-size: $text-base;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.epLabel {
+  font-size: $text-sm;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.topActions {
+  display: flex;
+  gap: $space-xs;
+  flex-shrink: 0;
+}
+
+.navBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: $text-xs;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: $radius-sm;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+  }
+}
+
+// Video container
+.videoContainer {
+  position: relative;
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  max-height: calc(100vh - 52px);
+  object-fit: contain;
+}
+
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $space-md;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $text-base;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+
+.errorText {
+  color: $red;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Controls overlay
+.controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  padding: $space-xl $space-lg $space-md;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 10;
+  cursor: default;
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+// Progress bar
+.progressBar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  margin-bottom: $space-sm;
+  position: relative;
+  transition: height 0.15s;
+
+  &:hover {
+    height: 6px;
+  }
+}
+
+.progressFill {
+  height: 100%;
+  background: $blue;
+  border-radius: 2px;
+  position: relative;
+  transition: width 0.1s linear;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: $blue;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .progressBar:hover &::after {
+    opacity: 1;
+  }
+}
+
+.controlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.controlsLeft,
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+}
+
+.ctrlBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: $space-xs;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+
+  &:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    color: $blue;
+  }
+}
+
+.volumeSlider {
+  width: 70px;
+  height: 3px;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+  }
+}
+
+.timeDisplay {
+  font-size: $text-xs;
+  font-family: $font-mono;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: $space-xs;
+  white-space: nowrap;
+}
+
+// Settings panel
+.settingsPanel {
+  position: absolute;
+  bottom: 60px;
+  right: $space-lg;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: $radius-md;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 20;
+  animation: fadeUp 0.15s ease-out;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.settingsSection {
+  padding: $space-sm;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.settingsTitle {
+  font-size: $text-xs;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px $space-sm;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settingsOption {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: $text-sm;
+  padding: 5px $space-sm;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &.activeOption {
+    color: $blue;
+    background: rgba($blue, 0.1);
+  }
+}
+
+// Episode bar
+.episodeBar {
+  background: rgba(10, 10, 10, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: $space-md $space-lg;
+}
+
+.episodeBarTitle {
+  font-size: $text-sm;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: $space-sm;
+  display: block;
+}
+
+.episodeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.epBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: $text-xs;
+  font-family: $font-mono;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 36px;
+  text-align: center;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+  }
+}
+
+.epBtnActive {
+  background: rgba($blue, 0.2) !important;
+  color: $blue !important;
+  border-color: rgba($blue, 0.3) !important;
+}
+
+.errorPage {
+  min-height: 100vh;
+  background: #000;
+  color: $red;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $text-lg;
+}
