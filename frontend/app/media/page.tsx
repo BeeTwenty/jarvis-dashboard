@@ -31,7 +31,8 @@ interface NextUp {
 }
 
 function jellyfinPlayUrl(jellyfinId: string): string {
-  return `/api/jellyfin-media/play/${jellyfinId}`
+  if (typeof window === 'undefined') return '#'
+  return `http://${window.location.hostname}:8096/web/#/details?id=${jellyfinId}`
 }
 
 interface MediaOverview {

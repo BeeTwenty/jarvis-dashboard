@@ -255,7 +255,7 @@ export default function MovieDetailPage() {
                 )}
                 <div className={styles.heroActions}>
                   {libraryInfo?.in_library && libraryInfo.jellyfin_id && (
-                    <a href={`/api/jellyfin-media/play/${libraryInfo.jellyfin_id}`} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
+                    <a href={`http://${window.location.hostname}:8096/web/#/details?id=${libraryInfo.jellyfin_id}`} target="_blank" rel="noopener" className={`btn ${styles.playBtn}`}>
                       <Play size={14} /> Play on Jellyfin
                     </a>
                   )}
