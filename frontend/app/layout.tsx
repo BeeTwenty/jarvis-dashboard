@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import '@/styles/globals.scss'
-import Sidebar from '@/components/Sidebar'
+import TopNav from '@/components/Sidebar'
 import MobileNav from '@/components/MobileNav'
 import { DataProvider } from '@/lib/DataContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
@@ -39,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <DataProvider>
             <div className="app-shell">
-              <Sidebar />
+              <TopNav />
               <div className="main-content">
                 {children}
               </div>

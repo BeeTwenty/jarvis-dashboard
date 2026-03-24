@@ -1,0 +1,639 @@
+@use '../../styles/variables' as *;
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $space-lg;
+  max-width: $max-content;
+  margin: 0 auto;
+  padding: $space-lg;
+
+  @include mobile {
+    grid-template-columns: 1fr;
+    gap: $space-md;
+    padding: $space-md;
+  }
+}
+
+// Column
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  border-radius: $radius-lg;
+  padding: $space-sm;
+}
+
+// Column background tints — dark mode is default (:root)
+.col_todo {
+  background: rgba($blue, 0.08);
+  border: 1px solid rgba($blue, 0.18);
+
+  :global([data-theme="light"]) & {
+    background: rgba($blue, 0.05);
+    border-color: rgba($blue, 0.12);
+  }
+}
+.col_in_progress {
+  background: rgba($orange, 0.08);
+  border: 1px solid rgba($orange, 0.18);
+
+  :global([data-theme="light"]) & {
+    background: rgba($orange, 0.05);
+    border-color: rgba($orange, 0.12);
+  }
+}
+.col_done {
+  background: rgba($green, 0.08);
+  border: 1px solid rgba($green, 0.18);
+
+  :global([data-theme="light"]) & {
+    background: rgba($green, 0.05);
+    border-color: rgba($green, 0.12);
+  }
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $space-xs $space-sm;
+}
+
+.columnTitle {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  font-size: $text-xs;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.columnCount {
+  font-size: $text-xs;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 1px 7px;
+  border-radius: $radius-full;
+  min-width: 18px;
+  text-align: center;
+}
+
+.columnDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotTodo { background: $blue; }
+.dotProgress { background: $orange; }
+.dotDone { background: $green; }
+
+.addBtn {
+  background: none !important;
+  border: none !important;
+  color: var(--text-tertiary) !important;
+  padding: 4px !important;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  transition: color $duration-fast, background $duration-fast;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+// Task list (droppable)
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+  flex: 1;
+  padding: $space-xs;
+  border-radius: $radius-md;
+  transition: background $duration-normal, outline-color $duration-normal;
+  min-height: 48px;
+}
+
+.taskListOver {
+  background: rgba($blue, 0.06);
+  outline: 1px dashed rgba($blue, 0.3);
+  outline-offset: -1px;
+}
+
+// Task card
+.task {
+  @include card;
+  padding: $space-sm $space-md $space-sm $space-xs;
+  user-select: text;
+  transition: transform $duration-fast $ease-smooth, box-shadow $duration-normal, border-color $duration-normal, opacity $duration-fast;
+
+  &:hover {
+    border-color: var(--card-hover-border);
+    box-shadow: var(--glass-shadow-lg);
+  }
+
+}
+
+.taskBody {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-xs;
+}
+
+.dragHandle {
+  flex-shrink: 0;
+  padding: 2px 0;
+  cursor: grab;
+  color: var(--text-tertiary);
+  opacity: 0.4;
+  transition: opacity $duration-fast, color $duration-fast;
+  touch-action: none;
+
+  .task:hover & { opacity: 0.8; }
+  &:active { cursor: grabbing; }
+}
+
+.taskMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.taskDragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+}
+
+.taskOverlay {
+  @include card;
+  padding: $space-md;
+  cursor: grabbing;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba($blue, 0.2);
+  border-color: rgba($blue, 0.3);
+  transform: rotate(1.5deg) scale(1.03);
+}
+
+.taskContent {
+  font-size: $text-sm;
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+// Done tasks — strikethrough + faded
+.taskDone {
+  opacity: 0.6;
+
+  .taskContent {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-tertiary);
+  }
+
+  .entityChip {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-tertiary);
+  }
+}
+
+.taskFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $space-sm;
+}
+
+.taskDate {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  font-family: $font-mono;
+}
+
+.taskActions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity $duration-fast;
+  .task:hover & { opacity: 1; }
+}
+
+.taskActionBtn {
+  background: none !important;
+  border: none !important;
+  color: var(--text-tertiary) !important;
+  padding: 3px !important;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color $duration-fast, background $duration-fast;
+  &:hover {
+    color: $red !important;
+    background: rgba($red, 0.1) !important;
+  }
+}
+
+// Bottom add-task button
+.addBottomBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-xs;
+  width: 100%;
+  padding: $space-sm;
+  border: 1px dashed var(--subtle-border);
+  border-radius: $radius-md;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: $text-xs;
+  font-family: $font-sans;
+  cursor: pointer;
+  transition: color $duration-fast, border-color $duration-fast, background $duration-fast;
+
+  &:hover {
+    color: var(--text-secondary);
+    border-color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+  }
+}
+
+// Entity chip
+.entityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba($blue, 0.1);
+  color: var(--blue);
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: $text-xs;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background $duration-fast;
+  cursor: pointer;
+  vertical-align: middle;
+  &:hover { background: rgba($blue, 0.2); }
+}
+
+// Add task form
+.addForm {
+  @include card;
+  padding: $space-sm $space-md;
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+  position: relative;
+}
+
+.addInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: $text-sm;
+  color: var(--text-primary);
+  font-family: $font-sans;
+  width: 100%;
+  resize: none;
+  line-height: 1.5;
+  &::placeholder { color: var(--text-tertiary); }
+}
+
+.addFormActions {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  justify-content: flex-end;
+}
+
+.addFormBtn {
+  font-size: $text-xs !important;
+  padding: 3px 10px !important;
+}
+
+// Autocomplete — smart positioning (up or down)
+.autocomplete {
+  position: absolute;
+  left: 0;
+  right: 0;
+  @include card;
+  padding: $space-xs 0;
+  z-index: 100;
+  max-height: min(220px, 40vh);
+  overflow-y: auto;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.autocompleteUp {
+  bottom: 100%;
+  margin-bottom: 4px;
+}
+
+.autocompleteDown {
+  top: 100%;
+  margin-top: 4px;
+}
+
+.autocompleteItem {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-sm $space-md;
+  font-size: $text-sm;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background $duration-fast;
+  &:hover, &[data-active="true"] { background: var(--bg-hover); }
+}
+
+.autocompleteType {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.autocompleteYear {
+  font-size: $text-xs;
+  color: var(--text-tertiary);
+  font-family: $font-mono;
+}
+
+// Date picker — top-right header controls
+.datePicker {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+  position: relative;
+}
+
+.dateArrow {
+  background: none !important;
+  border: none !important;
+  color: var(--text-tertiary) !important;
+  padding: 4px !important;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  transition: color $duration-fast, background $duration-fast;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.dateLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-tertiary) !important;
+  border: 1px solid var(--subtle-border) !important;
+  color: var(--text-secondary) !important;
+  font-size: $text-xs;
+  font-weight: 500;
+  font-family: $font-sans;
+  padding: 4px 10px !important;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: color $duration-fast, border-color $duration-fast, background $duration-fast;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    border-color: var(--text-tertiary) !important;
+  }
+}
+
+.dateLabelToday {
+  color: $blue !important;
+  border-color: rgba($blue, 0.3) !important;
+  background: rgba($blue, 0.08) !important;
+
+  &:hover {
+    background: rgba($blue, 0.14) !important;
+  }
+}
+
+.dateTodayBtn {
+  background: none !important;
+  border: 1px solid var(--subtle-border) !important;
+  color: var(--text-tertiary) !important;
+  font-size: $text-xs;
+  font-family: $font-sans;
+  padding: 3px 8px !important;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: color $duration-fast, border-color $duration-fast, background $duration-fast;
+  margin-left: 2px;
+
+  &:hover {
+    color: $blue !important;
+    border-color: rgba($blue, 0.3) !important;
+    background: rgba($blue, 0.08) !important;
+  }
+}
+
+// Custom calendar dropdown
+.calendarDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  @include card;
+  padding: $space-md;
+  min-width: 260px;
+  animation: calendarIn $duration-normal $ease-smooth both;
+  user-select: none;
+}
+
+@keyframes calendarIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $space-md;
+}
+
+.calendarNav {
+  background: none !important;
+  border: none !important;
+  color: var(--text-tertiary) !important;
+  padding: 4px !important;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  transition: color $duration-fast, background $duration-fast;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.calendarMonth {
+  font-size: $text-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendarWeekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+  margin-bottom: $space-xs;
+}
+
+.calendarWeekday {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 0;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendarDay {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $text-xs;
+  font-weight: 500;
+  font-family: $font-sans;
+  color: var(--text-primary);
+  background: none !important;
+  border: none !important;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: background $duration-fast, color $duration-fast;
+  padding: 0 !important;
+
+  &:hover {
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.calendarDayOutside {
+  color: var(--text-tertiary);
+  opacity: 0.4;
+}
+
+.calendarDayToday {
+  color: $blue !important;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: $blue;
+  }
+}
+
+.calendarDaySelected {
+  background: $blue !important;
+  color: #fff !important;
+
+  &:hover {
+    background: lighten($blue, 8%) !important;
+  }
+}
+
+.calendarFooter {
+  display: flex;
+  justify-content: center;
+  margin-top: $space-sm;
+  padding-top: $space-sm;
+  border-top: 1px solid var(--subtle-border);
+}
+
+.calendarTodayBtn {
+  background: none !important;
+  border: none !important;
+  color: $blue !important;
+  font-size: $text-xs;
+  font-weight: 500;
+  font-family: $font-sans;
+  cursor: pointer;
+  padding: 3px 12px !important;
+  border-radius: $radius-sm;
+  transition: background $duration-fast;
+
+  &:hover {
+    background: rgba($blue, 0.1) !important;
+  }
+}
+
+// Migrate banner
+.migrateBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  padding: $space-xs $space-md;
+  margin: 0 $space-lg;
+  background: rgba($blue, 0.08);
+  border: 1px solid rgba($blue, 0.18);
+  border-radius: $radius-md;
+  color: var(--text-secondary);
+  font-size: $text-xs;
+  animation: fadeIn $duration-fast $ease-smooth both;
+
+  @include mobile {
+    margin: 0 $space-md;
+  }
+}
+
+.migrateDismiss {
+  background: none !important;
+  border: none !important;
+  color: var(--text-tertiary) !important;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px !important;
+  line-height: 1;
+
+  &:hover {
+    color: var(--text-primary) !important;
+  }
+}
+
+// Empty column
+.emptyColumn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-xl;
+  color: var(--text-tertiary);
+  font-size: $text-xs;
+  border: 1px dashed var(--subtle-border);
+  border-radius: $radius-md;
+  opacity: 0.5;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

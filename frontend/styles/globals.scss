@@ -154,153 +154,122 @@ body {
 }
 
 // ═══════════════════════════════════════
-//  Layout
+//  Layout — Top Nav Architecture
 // ═══════════════════════════════════════
 .app-shell {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-// Sidebar
-.sidebar {
+// Top navigation bar
+.topnav {
   position: fixed;
   top: 0;
   left: 0;
-  bottom: 0;
-  width: $sidebar-width;
-  @include glass;
-  border-right: 1px solid var(--glass-border);
-  display: flex;
-  flex-direction: column;
+  right: 0;
+  height: $topnav-height;
   z-index: 50;
+  @include glass;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  padding: 0 $space-2xl;
+  gap: $space-xl;
   transition: background $duration-slow $ease-smooth, border-color $duration-slow $ease-smooth;
 
-  @include mobile { display: none; }
+  @include mobile {
+    padding: 0 $space-lg;
+    gap: $space-md;
+  }
 }
 
-.sidebar-header {
-  padding: $space-xl $space-xl $space-lg;
-  border-bottom: 1px solid var(--subtle-border);
-}
-
-.sidebar-brand {
+.topnav-brand {
   display: flex;
   align-items: center;
   gap: $space-md;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
-.sidebar-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: $radius-sm;
+.topnav-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: linear-gradient(135deg, var(--blue), var(--teal));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: $text-lg;
+  font-size: $text-base;
   box-shadow: 0 4px 12px rgba($blue, 0.25);
-  transition: transform $duration-normal $ease-spring, box-shadow $duration-normal;
+  transition: transform $duration-normal $ease-spring;
 
-  &:hover {
-    transform: scale(1.08) rotate(-2deg);
-    box-shadow: 0 6px 20px rgba($blue, 0.35);
-  }
+  &:hover { transform: scale(1.08) rotate(-2deg); }
 }
 
-.sidebar-title {
+.topnav-title {
   font-size: $text-lg;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+
+  @include mobile { display: none; }
 }
 
-.sidebar-subtitle {
-  font-size: $text-xs;
-  color: var(--text-tertiary);
-  letter-spacing: 0.04em;
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: $space-md;
-  overflow-y: auto;
-}
-
-.nav-item {
+.topnav-links {
   display: flex;
   align-items: center;
-  gap: $space-md;
-  padding: 10px $space-lg;
-  border-radius: $radius-sm;
+  gap: 2px;
+  flex: 1;
+  justify-content: center;
+
+  @include mobile { display: none; }
+}
+
+.topnav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: $text-base;
-  font-weight: 400;
-  transition: all $duration-normal $ease-smooth;
-  cursor: pointer;
-  margin-bottom: 2px;
-  position: relative;
-  overflow: hidden;
+  font-size: $text-sm;
+  font-weight: 500;
+  transition: all $duration-fast $ease-smooth;
+  white-space: nowrap;
 
-  // Subtle shine on hover
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--shine-gradient);
-    transform: translateX(-100%);
-    transition: transform $duration-slow $ease-smooth;
-  }
+  svg { opacity: 0.5; transition: opacity $duration-fast; }
 
   &:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
-    &::before { transform: translateX(100%); }
+    svg { opacity: 0.8; }
   }
 
   &.active {
-    background: rgba($blue, 0.12);
+    background: rgba($blue, 0.1);
     color: var(--blue);
-    font-weight: 500;
+    svg { opacity: 1; }
   }
-
-  .nav-icon {
-    display: flex;
-    align-items: center;
-    width: 22px;
-    justify-content: center;
-    opacity: 0.6;
-    transition: opacity $duration-fast, transform $duration-normal $ease-spring;
-  }
-
-  &:hover .nav-icon { opacity: 0.9; transform: scale(1.1); }
-  &.active .nav-icon { opacity: 1; }
 }
 
-.sidebar-footer {
-  padding: $space-lg;
-  border-top: 1px solid var(--subtle-border);
-  display: flex;
-  flex-direction: column;
-  gap: $space-xs;
-}
-
-.sidebar-footer-row {
+.topnav-right {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: $space-md;
+  flex-shrink: 0;
 }
 
-.sidebar-meta {
+.topnav-clock {
   font-size: $text-xs;
-  color: var(--text-tertiary);
   font-family: $font-mono;
+  color: var(--text-tertiary);
   letter-spacing: 0.02em;
-  display: flex;
-  align-items: center;
-  gap: $space-sm;
+
+  @include mobile { display: none; }
 }
 
 // Theme toggle
@@ -324,10 +293,7 @@ body {
     border-color: var(--card-hover-border);
     transform: scale(1.08);
   }
-
-  &:active {
-    transform: scale(0.95);
-  }
+  &:active { transform: scale(0.95); }
 }
 
 .theme-toggle-icon {
@@ -335,49 +301,41 @@ body {
   align-items: center;
   justify-content: center;
   transition: transform $duration-normal $ease-spring;
-
-  .theme-toggle:hover & {
-    transform: rotate(15deg);
-  }
+  .theme-toggle:hover & { transform: rotate(15deg); }
 }
 
-// Main content
+// Main content — full width, top padding for nav
 .main-content {
-  margin-left: $sidebar-width;
   flex: 1;
   min-height: 100vh;
   min-width: 0;
+  padding-top: $topnav-height;
   overflow-x: hidden;
   transition: background $duration-slow $ease-smooth;
 
   @include mobile {
-    margin-left: 0;
     padding-bottom: 80px;
   }
 }
 
 .page-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  @include glass;
-  padding: $space-lg $space-2xl;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--glass-border);
-  transition: background $duration-slow $ease-smooth, border-color $duration-slow $ease-smooth;
+  padding: $space-xl $space-2xl $space-sm;
+  max-width: $max-content;
+  margin: 0 auto;
 
   @include mobile {
     flex-direction: column;
     align-items: flex-start;
     gap: $space-xs;
-    padding: $space-md $space-lg;
+    padding: $space-lg $space-lg $space-xs;
   }
 }
 
 .page-title {
-  font-size: $text-2xl;
+  font-size: $text-xl;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-primary);
@@ -426,18 +384,18 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: $space-xs $space-sm;
-  border-radius: $radius-sm;
+  gap: 2px;
+  padding: $space-xs 6px;
+  border-radius: 8px;
   background: none;
   border: none;
   color: var(--text-tertiary);
-  font-size: 0.6rem;
+  font-size: 0.5625rem;
   font-weight: 500;
   cursor: pointer;
   transition: color $duration-fast, transform $duration-normal $ease-spring;
   text-decoration: none;
-  min-width: 50px;
+  min-width: 42px;
 
   .mobile-nav-icon {
     display: flex;
@@ -447,7 +405,7 @@ body {
   &:active { transform: scale(0.92); }
   &.active {
     color: var(--blue);
-    .mobile-nav-icon { transform: scale(1.15); }
+    .mobile-nav-icon { transform: scale(1.1); }
   }
 }
 
@@ -659,7 +617,7 @@ body {
 // Toast
 .toast-container {
   position: fixed;
-  top: $space-xl;
+  top: calc(#{$topnav-height} + #{$space-lg});
   right: $space-xl;
   z-index: 300;
   display: flex;
@@ -797,7 +755,7 @@ body {
 // ═══════════════════════════════════════
 // Apply smooth transitions to all theme-aware elements on theme change
 html[data-theme] {
-  .sidebar, .page-header, .mobile-nav, .card, .metric-card, .badge, .btn,
+  .topnav, .page-header, .mobile-nav, .card, .metric-card, .badge, .btn,
   .segment-control, .segment-btn, .input, .toast, .progress {
     transition-property: background, color, border-color, box-shadow;
     transition-duration: $duration-slow;
