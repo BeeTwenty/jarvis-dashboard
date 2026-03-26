@@ -7,7 +7,8 @@ import { toast } from '@/lib/toast'
 import {
   Sparkles, Search, Library, TrendingUp, Plus, Film, Tv,
   Heart, Zap, Brain, Sofa, Skull, Laugh, Drama, Swords,
-  Rocket, Ghost, Clapperboard, Palette, ArrowUp, ArrowDown, X, Loader2
+  Rocket, Ghost, Clapperboard, Palette, ArrowUp, ArrowDown, X, Loader2,
+  Bookmark, BookmarkCheck
 } from 'lucide-react'
 import styles from './page.module.scss'
 
@@ -253,7 +254,7 @@ function SeriesSeasonModal({ rec, onClose }: { rec: Recommendation; onClose: () 
 }
 
 export default function DiscoverPage() {
-  const [activeTab, setActiveTab] = useState<'mood' | 'similar' | 'library' | 'trending'>('mood')
+  const [activeTab, setActiveTab] = useState<'mood' | 'similar' | 'library' | 'trending' | 'watchlist'>('mood')
   const [selectedMood, setSelectedMood] = useState<string | null>(null)
   const [moodMediaType, setMoodMediaType] = useState<'movie' | 'tv'>('movie')
   const [moodResults, setMoodResults] = useState<Recommendation[]>([])
@@ -272,6 +273,12 @@ export default function DiscoverPage() {
   const [torrentQuery, setTorrentQuery] = useState<string | null>(null)
   const [torrentCategory, setTorrentCategory] = useState<string>('')
   const [seriesModal, setSeriesModal] = useState<Recommendation | null>(null)
+
+  // Watchlist state
+  interface WatchlistItem { id: number; tmdb_id: string; media_type: string; title: string; year: string; poster: string; category: string; added_at: string }
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([])
+  const [watchlistLoaded, setWatchlistLoaded] = useState(false)
+  const [watchlistFilter, setWatchlistFilter] = useState<string>('all')
 
   // Global search state
   const [globalQuery, setGlobalQuery] = useState('')
@@ -412,6 +419,19 @@ export default function DiscoverPage() {
     }
   }, [])
 
+  async function loadWatchlist() {
+    setWatchlistLoaded(false)
+    const r = await api<{ items: WatchlistItem[] }>('/api/watchlist')
+    if (r.data) setWatchlistItems(r.data.items || [])
+    setWatchlistLoaded(true)
+  }
+
+  async function removeFromWatchlist(tmdb_id: string, media_type: string) {
+    await api(`/api/watchlist?tmdb_id=${tmdb_id}&media_type=${media_type}`, { method: 'DELETE' })
+    setWatchlistItems(prev => prev.filter(w => !(w.tmdb_id === tmdb_id && w.media_type === media_type)))
+    toast('Removed from watchlist', 'success')
+  }
+
   function handleAddTorrent(rec: Recommendation) {
     if (rec.type === 'series' || rec.type === 'tv') {
       if (rec.tmdb_id) {
@@ -502,11 +522,12 @@ export default function DiscoverPage() {
               { id: 'similar' as const, label: 'Similar To...', icon: Search },
               { id: 'library' as const, label: 'From Library', icon: Library },
               { id: 'trending' as const, label: 'Trending', icon: TrendingUp },
+              { id: 'watchlist' as const, label: 'Watchlist', icon: Bookmark },
             ].map(tab => (
               <button
                 key={tab.id}
                 className={`segment-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => { setActiveTab(tab.id); if (tab.id === 'watchlist' && !watchlistLoaded) loadWatchlist() }}
               >
                 <tab.icon size={14} style={{ marginRight: 4, verticalAlign: -2 }} />
                 {tab.label}
@@ -762,6 +783,68 @@ export default function DiscoverPage() {
                     <RecommendationCard key={i} rec={rec} onAddTorrent={handleAddTorrent} />
                   ))}
               </div>
+            )}
+          </div>
+        )}
+        {/* Watchlist */}
+        {activeTab === 'watchlist' && (
+          <div className="section">
+            {!watchlistLoaded ? (
+              <div className={styles.loadingState}><Loader2 size={20} className={styles.spinner} /> Loading watchlist...</div>
+            ) : watchlistItems.length === 0 ? (
+              <div className="empty-state">
+                <Bookmark size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+                <div>Your watchlist is empty</div>
+                <div style={{ fontSize: '0.85rem', opacity: 0.6, marginTop: 4 }}>Save movies from their detail page to see them here</div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.filterBar}>
+                  <div className="segment-control" style={{ fontSize: '0.8rem' }}>
+                    {['all', 'Must Watch', 'Maybe Later', 'Recommended'].map(cat => (
+                      <button
+                        key={cat}
+                        className={`segment-btn ${watchlistFilter === cat ? 'active' : ''}`}
+                        onClick={() => setWatchlistFilter(cat)}
+                      >
+                        {cat === 'all' ? `All (${watchlistItems.length})` : `${cat} (${watchlistItems.filter(w => w.category === cat).length})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.libraryGrid}>
+                  {watchlistItems
+                    .filter(w => watchlistFilter === 'all' || w.category === watchlistFilter)
+                    .map(w => {
+                      const href = `/discover/${w.media_type === 'tv' || w.media_type === 'series' ? 'tv' : 'movie'}/${w.tmdb_id}`
+                      return (
+                        <div key={w.id} className={styles.libraryCard} style={{ position: 'relative' }}>
+                          <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
+                            {w.poster ? (
+                              <img src={w.poster} alt={w.title} className={styles.libraryPoster} loading="lazy" />
+                            ) : (
+                              <div className={styles.libraryPosterEmpty}><Film size={20} /></div>
+                            )}
+                            <span className={styles.libraryTitle}>{w.title}</span>
+                            <div className={styles.libraryMeta}>
+                              {w.year && <span className="badge gray">{w.year}</span>}
+                              <span className={`badge ${w.category === 'Must Watch' ? 'orange' : w.category === 'Recommended' ? 'green' : 'blue'}`}>
+                                {w.category}
+                              </span>
+                            </div>
+                          </Link>
+                          <button
+                            className={styles.watchlistRemoveBtn}
+                            onClick={() => removeFromWatchlist(w.tmdb_id, w.media_type)}
+                            title="Remove from watchlist"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                </div>
+              </>
             )}
           </div>
         )}

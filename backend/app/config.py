@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     tmdb_api_key: str = ""
     tmdb_base: str = "https://api.themoviedb.org/3"
 
+    omdb_api_key: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

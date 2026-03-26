@@ -375,6 +375,35 @@
   flex-wrap: wrap;
 }
 
+// Watchlist remove button (overlay on poster cards)
+.watchlistRemoveBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity $duration-fast, background $duration-fast;
+  z-index: 2;
+
+  .libraryCard:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: rgba($red, 0.8);
+    color: white;
+  }
+}
+
 // Filter bar
 .filterBar {
   display: flex;

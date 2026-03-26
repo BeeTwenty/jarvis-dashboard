@@ -2,8 +2,12 @@ import concurrent.futures
 import urllib.parse
 
 import httpx
+from cachetools import TTLCache
 
 from app.config import settings
+
+# LRU cache for raw TMDB fetch responses — deduplicates across endpoints
+_fetch_cache: TTLCache = TTLCache(maxsize=500, ttl=3600)
 
 _client = httpx.Client(timeout=10, headers={
     "User-Agent": "JarvisDashboard/1.0",
@@ -12,11 +16,16 @@ _client = httpx.Client(timeout=10, headers={
 
 
 def fetch(endpoint: str) -> dict:
+    cached = _fetch_cache.get(endpoint)
+    if cached is not None:
+        return cached
     sep = "&" if "?" in endpoint else "?"
     url = f"{settings.tmdb_base}{endpoint}{sep}api_key={settings.tmdb_api_key}"
     try:
         resp = _client.get(url)
-        return resp.json()
+        data = resp.json()
+        _fetch_cache[endpoint] = data
+        return data
     except Exception as e:
         print(f"[TMDB] Error fetching {endpoint}: {e}")
         return {}
@@ -37,7 +46,7 @@ def search_similar(title: str) -> tuple[list, set]:
                 if key and key not in seen_tmdb:
                     seen_tmdb.add(key)
                     year = (s.get("release_date") or "")[:4]
-                    poster = f"https://image.tmdb.org/t/p/w500{s['poster_path']}" if s.get("poster_path") else ""
+                    poster = f"/api/tmdb-image/w500{s['poster_path']}" if s.get("poster_path") else ""
                     tmdb_results.append({
                         "title": s_title, "year": year, "type": "movie",
                         "description": (s.get("overview") or "")[:200],
@@ -58,7 +67,7 @@ def search_similar(title: str) -> tuple[list, set]:
                 if key and key not in seen_tmdb:
                     seen_tmdb.add(key)
                     year = (s.get("first_air_date") or "")[:4]
-                    poster = f"https://image.tmdb.org/t/p/w500{s['poster_path']}" if s.get("poster_path") else ""
+                    poster = f"/api/tmdb-image/w500{s['poster_path']}" if s.get("poster_path") else ""
                     tmdb_results.append({
                         "title": s_title, "year": year, "type": "series",
                         "description": (s.get("overview") or "")[:200],
@@ -80,7 +89,7 @@ def enrich_with_posters(results: list, max_items: int = 20) -> list:
                 data = fetch(f"/{t}/{m['tmdb_id']}")
                 if data:
                     if data.get("poster_path"):
-                        m["poster"] = f"https://image.tmdb.org/t/p/w300{data['poster_path']}"
+                        m["poster"] = f"/api/tmdb-image/w300{data['poster_path']}"
                     if data.get("vote_average"):
                         m["rating"] = round(data["vote_average"], 1)
                     if data.get("overview") and not m.get("description"):
@@ -106,7 +115,7 @@ def get_recommendations_for_item(title: str, media_type: str = "movie") -> list:
     for s in recs.get("results", [])[:10]:
         s_title = s.get("title") or s.get("name", "")
         year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
-        poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+        poster = f"/api/tmdb-image/w300{s['poster_path']}" if s.get("poster_path") else ""
         s_type = "series" if kind == "tv" else "movie"
         results.append({
             "title": s_title, "year": year, "type": s_type,
@@ -128,7 +137,7 @@ def discover_by_genres(genre_ids: list, media_type: str = "movie", page: int = 1
     for s in data.get("results", [])[:20]:
         s_title = s.get("title") or s.get("name", "")
         year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
-        poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+        poster = f"/api/tmdb-image/w300{s['poster_path']}" if s.get("poster_path") else ""
         s_type = "series" if kind == "tv" else "movie"
         results.append({
             "title": s_title, "year": year, "type": s_type,
@@ -160,7 +169,7 @@ def multi_search(query: str) -> list:
             continue
         seen.add(tmdb_id)
         year = (item.get("release_date") or "")[:4]
-        poster = f"https://image.tmdb.org/t/p/w500{item['poster_path']}" if item.get("poster_path") else ""
+        poster = f"/api/tmdb-image/w500{item['poster_path']}" if item.get("poster_path") else ""
         results.append({
             "title": title, "year": year,
             "tmdb_id": tmdb_id,
@@ -178,7 +187,7 @@ def multi_search(query: str) -> list:
             continue
         seen.add(tmdb_id)
         year = (item.get("first_air_date") or "")[:4]
-        poster = f"https://image.tmdb.org/t/p/w500{item['poster_path']}" if item.get("poster_path") else ""
+        poster = f"/api/tmdb-image/w500{item['poster_path']}" if item.get("poster_path") else ""
         results.append({
             "title": title, "year": year,
             "tmdb_id": tmdb_id,
@@ -193,14 +202,18 @@ def multi_search(query: str) -> list:
 def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
     kind = "tv" if media_type in ("tv", "series") else "movie"
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
         f_details = pool.submit(fetch, f"/{kind}/{tmdb_id}")
         f_credits = pool.submit(fetch, f"/{kind}/{tmdb_id}/credits")
         f_similar = pool.submit(fetch, f"/{kind}/{tmdb_id}/recommendations")
+        f_external = pool.submit(fetch, f"/{kind}/{tmdb_id}/external_ids")
+        f_videos = pool.submit(fetch, f"/{kind}/{tmdb_id}/videos")
 
     details = f_details.result()
     credits = f_credits.result()
     similar_data = f_similar.result()
+    external_ids = f_external.result()
+    videos_data = f_videos.result()
 
     if not details or "id" not in details:
         return {"error": "Movie/series not found on TMDB"}
@@ -223,15 +236,15 @@ def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
     for member in credits.get("cast", [])[:10]:
         photo = ""
         if member.get("profile_path"):
-            photo = f"https://image.tmdb.org/t/p/w185{member['profile_path']}"
+            photo = f"/api/tmdb-image/w185{member['profile_path']}"
         cast.append({
             "name": member.get("name", ""),
             "character": member.get("character", ""),
             "photo": photo,
         })
 
-    poster = f"https://image.tmdb.org/t/p/w500{details['poster_path']}" if details.get("poster_path") else ""
-    backdrop = f"https://image.tmdb.org/t/p/w1280{details['backdrop_path']}" if details.get("backdrop_path") else ""
+    poster = f"/api/tmdb-image/w500{details['poster_path']}" if details.get("poster_path") else ""
+    backdrop = f"/api/tmdb-image/w1280{details['backdrop_path']}" if details.get("backdrop_path") else ""
 
     genres = [g.get("name", "") for g in details.get("genres", [])]
 
@@ -245,7 +258,7 @@ def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
         s_title = s.get("title") or s.get("name") or ""
         s_date = s.get("release_date") or s.get("first_air_date") or ""
         s_year = s_date[:4] if s_date else ""
-        s_poster = f"https://image.tmdb.org/t/p/w500{s['poster_path']}" if s.get("poster_path") else ""
+        s_poster = f"/api/tmdb-image/w500{s['poster_path']}" if s.get("poster_path") else ""
         s_type = "tv" if s.get("name") and not s.get("title") else "movie"
         similar_tmdb.append({
             "title": s_title, "year": s_year,
@@ -266,8 +279,37 @@ def get_detail(tmdb_id: str, media_type: str = "movie") -> dict:
         "tagline": details.get("tagline", ""),
         "status": details.get("status", ""),
         "tmdb_id": str(tmdb_id), "type": kind,
+        "original_language": details.get("original_language", ""),
         "torrent_query": f"{title} S01 complete" if kind == "tv" else f"{title} {year}".strip(),
+        "imdb_id": external_ids.get("imdb_id", ""),
+        "trailers": _extract_trailers(videos_data),
         "similar_tmdb": similar_tmdb,
+    }
+
+
+def _extract_trailers(videos_data: dict) -> list:
+    """Extract YouTube trailers from TMDB videos response, best first."""
+    trailers = []
+    for v in videos_data.get("results", []):
+        if v.get("site") == "YouTube" and v.get("key"):
+            trailers.append({
+                "key": v["key"],
+                "name": v.get("name", "Trailer"),
+                "type": v.get("type", ""),
+                "official": v.get("official", False),
+            })
+    # Sort: official trailers first, then teasers, then others
+    type_order = {"Trailer": 0, "Teaser": 1, "Clip": 2, "Featurette": 3}
+    trailers.sort(key=lambda t: (not t["official"], type_order.get(t["type"], 9)))
+    return trailers[:5]
+
+
+def get_external_ids(tmdb_id: str, media_type: str = "movie") -> dict:
+    """Get external IDs (IMDB, etc.) for a TMDB item."""
+    kind = "tv" if media_type in ("tv", "series") else "movie"
+    data = fetch(f"/{kind}/{tmdb_id}/external_ids")
+    return {
+        "imdb_id": data.get("imdb_id", ""),
     }
 
 
@@ -285,7 +327,7 @@ def get_trending(time_window: str = "week") -> list:
         if key and key not in seen:
             seen.add(key)
             year = (item.get("release_date") or "")[:4]
-            poster = f"https://image.tmdb.org/t/p/w300{item['poster_path']}" if item.get("poster_path") else ""
+            poster = f"/api/tmdb-image/w300{item['poster_path']}" if item.get("poster_path") else ""
             results.append({
                 "title": title, "year": year, "type": "movie",
                 "description": (item.get("overview") or "")[:200],
@@ -302,7 +344,7 @@ def get_trending(time_window: str = "week") -> list:
         if key and key not in seen:
             seen.add(key)
             year = (item.get("first_air_date") or "")[:4]
-            poster = f"https://image.tmdb.org/t/p/w300{item['poster_path']}" if item.get("poster_path") else ""
+            poster = f"/api/tmdb-image/w300{item['poster_path']}" if item.get("poster_path") else ""
             results.append({
                 "title": title, "year": year, "type": "series",
                 "description": (item.get("overview") or "")[:200],

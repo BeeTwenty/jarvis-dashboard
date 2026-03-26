@@ -93,7 +93,13 @@
 .dotProgress { background: $orange; }
 .dotDone { background: $green; }
 
-.addBtn {
+.columnActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.columnActionBtn {
   background: none !important;
   border: none !important;
   color: var(--text-tertiary) !important;
@@ -101,6 +107,8 @@
   cursor: pointer;
   border-radius: $radius-sm;
   transition: color $duration-fast, background $duration-fast;
+  display: flex;
+  align-items: center;
 
   &:hover {
     color: var(--text-primary) !important;
@@ -153,7 +161,6 @@
   color: var(--text-tertiary);
   opacity: 0.4;
   transition: opacity $duration-fast, color $duration-fast;
-  touch-action: none;
 
   .task:hover & { opacity: 0.8; }
   &:active { cursor: grabbing; }
@@ -229,9 +236,79 @@
   cursor: pointer;
   border-radius: 6px;
   transition: color $duration-fast, background $duration-fast;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.taskActionDelete {
   &:hover {
     color: $red !important;
     background: rgba($red, 0.1) !important;
+  }
+}
+
+// Inline edit form
+.editForm {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: $space-xs;
+}
+
+.editInput {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--subtle-border);
+  border-radius: $radius-sm;
+  outline: none;
+  font-size: $text-sm;
+  color: var(--text-primary);
+  font-family: $font-sans;
+  width: 100%;
+  resize: none;
+  line-height: 1.5;
+  padding: $space-xs $space-sm;
+  transition: border-color $duration-fast;
+
+  &:focus {
+    border-color: $blue;
+  }
+}
+
+.editActions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.editActionBtn {
+  background: none !important;
+  border: 1px solid var(--subtle-border) !important;
+  color: var(--text-tertiary) !important;
+  padding: 3px 6px !important;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  transition: color $duration-fast, background $duration-fast, border-color $duration-fast;
+
+  &:hover {
+    color: var(--text-primary) !important;
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+.editActionSave {
+  color: $green !important;
+  border-color: rgba($green, 0.3) !important;
+
+  &:hover {
+    background: rgba($green, 0.1) !important;
+    color: $green !important;
   }
 }
 

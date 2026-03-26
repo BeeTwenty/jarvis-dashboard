@@ -74,9 +74,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     mountedRef.current = true
     refreshFast()
     refreshSlow()
-    const fast = setInterval(refreshFast, 5000)
-    const slow = setInterval(refreshSlow, 300000)
-    return () => { mountedRef.current = false; clearInterval(fast); clearInterval(slow) }
+    let fast = setInterval(refreshFast, 5000)
+    let slow = setInterval(refreshSlow, 300000)
+
+    // Pause polling when tab is hidden, resume when visible
+    function handleVisibility() {
+      if (document.hidden) {
+        clearInterval(fast)
+        clearInterval(slow)
+      } else {
+        refreshFast()
+        fast = setInterval(refreshFast, 5000)
+        slow = setInterval(refreshSlow, 300000)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      mountedRef.current = false
+      clearInterval(fast)
+      clearInterval(slow)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [refreshFast, refreshSlow])
 
   return (

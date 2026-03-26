@@ -7,7 +7,7 @@ import { api, fmtBytes } from '@/lib/api'
 import { toast } from '@/lib/toast'
 import {
   ArrowLeft, Star, Clock, Film, Tv, Plus, X, ArrowUp, ArrowDown, Loader2, Search,
-  ChevronDown, ChevronRight, Check, Download, Play
+  ChevronDown, ChevronRight, Check, Download, Play, Bookmark, BookmarkCheck, Clapperboard
 } from 'lucide-react'
 import styles from './page.module.scss'
 
@@ -52,10 +52,18 @@ interface MovieDetail {
   status: string
   tmdb_id: string
   type: string
+  original_language: string
   torrent_query: string
+  imdb_id?: string
+  trailers?: { key: string; name: string; type: string; official: boolean }[]
   similar_tmdb: SimilarMovie[]
   similar_kb: KBMovie[]
   error?: string
+}
+
+interface ExternalRatings {
+  imdb: { rating?: string; votes?: string; url?: string }
+  letterboxd: { rating?: string; url?: string }
 }
 
 function TorrentSearchModal({ query, onClose, category }: { query: string; onClose: () => void; category?: string }) {
@@ -133,6 +141,11 @@ export default function MovieDetailPage() {
   const [expandedSeason, setExpandedSeason] = useState<number | null>(null)
   const [libraryInfo, setLibraryInfo] = useState<{ in_library: boolean; jellyfin_id?: string } | null>(null)
   const [streamInfo, setStreamInfo] = useState<{ available: boolean; show_id?: string; name?: string } | null>(null)
+  const [ytInfo, setYtInfo] = useState<{ available: boolean; url?: string; title?: string; duration?: number; channel?: string } | null>(null)
+  const [externalRatings, setExternalRatings] = useState<ExternalRatings | null>(null)
+  const [watchlistStatus, setWatchlistStatus] = useState<{ in_watchlist: boolean; category: string | null }>({ in_watchlist: false, category: null })
+  const [showTrailer, setShowTrailer] = useState(false)
+  const [showWatchlistPicker, setShowWatchlistPicker] = useState(false)
 
   const type = params.type as string
   const id = params.id as string
@@ -144,16 +157,38 @@ export default function MovieDetailPage() {
       setLoading(false)
       if (r.data && !r.data.error) {
         setDetail(r.data)
-        // Check if in Jellyfin library
-        const lib = await api<{ in_library: boolean; jellyfin_id?: string }>(
+        // Fire all secondary checks in parallel (don't block each other)
+        api<{ in_library: boolean; jellyfin_id?: string }>(
           `/api/jellyfin-media/library-check?tmdb_id=${id}&media_type=${type}`
-        )
-        if (lib.data) setLibraryInfo(lib.data)
-        // Check streaming availability
-        const stream = await api<{ available: boolean; show_id?: string; name?: string }>(
+        ).then(lib => { if (lib.data) setLibraryInfo(lib.data) })
+
+        api<{ available: boolean; show_id?: string; name?: string }>(
           `/api/streaming/check?title=${encodeURIComponent(r.data.title)}&type=${type}`
-        )
-        if (stream.data) setStreamInfo(stream.data)
+        ).then(stream => { if (stream.data) setStreamInfo(stream.data) })
+
+        api<{ in_watchlist: boolean; category: string | null }>(
+          `/api/watchlist/check?tmdb_id=${id}&media_type=${type}`
+        ).then(wl => { if (wl.data) setWatchlistStatus(wl.data) })
+
+        // Lazy-load external ratings (IMDB + Letterboxd) — pass known data to avoid redundant TMDB calls
+        const extParams = new URLSearchParams({ tmdb_id: id, type })
+        if (r.data.imdb_id) extParams.set('imdb_id', r.data.imdb_id)
+        if (r.data.title) extParams.set('title', r.data.title)
+        if (r.data.year) extParams.set('year', r.data.year)
+        api<ExternalRatings>(
+          `/api/recommendations/external-ratings?${extParams}`
+        ).then(ext => { if (ext.data) setExternalRatings(ext.data) })
+
+        // YouTube check — only for Indian language content (hi, ta, te, ml, kn, bn, mr, pa, gu, etc.)
+        const indianLangs = ['hi', 'ta', 'te', 'ml', 'kn', 'bn', 'mr', 'pa', 'gu', 'or', 'as', 'ur']
+        if (type === 'movie' && indianLangs.includes(r.data.original_language)) {
+          fetch(`/api/streaming/youtube?title=${encodeURIComponent(r.data.title)}&year=${encodeURIComponent(r.data.year || '')}`, {
+            signal: AbortSignal.timeout(30000),
+          })
+            .then(res => res.json())
+            .then(data => { if (data?.available) setYtInfo(data) })
+            .catch(() => {})
+        }
       } else {
         toast(r.error || r.data?.error || 'Failed to load details', 'error')
       }
@@ -247,6 +282,36 @@ export default function MovieDetailPage() {
                   {detail.rating > 0 && (
                     <span className={styles.metaItem}><Star size={12} /> {detail.rating}/10 ({detail.vote_count.toLocaleString()} votes)</span>
                   )}
+                  {externalRatings?.imdb?.url && (
+                    <a
+                      href={externalRatings.imdb.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.ratingBadge}
+                      style={{ '--badge-color': '#f5c518' } as React.CSSProperties}
+                      title={externalRatings.imdb.votes ? `${externalRatings.imdb.votes} votes` : 'View on IMDB'}
+                    >
+                      <span className={styles.ratingBadgeLabel}>IMDb</span>
+                      {externalRatings.imdb.rating && externalRatings.imdb.rating !== 'N/A' && (
+                        <span className={styles.ratingBadgeValue}>{externalRatings.imdb.rating}</span>
+                      )}
+                    </a>
+                  )}
+                  {externalRatings?.letterboxd?.url && (
+                    <a
+                      href={externalRatings.letterboxd.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.ratingBadge}
+                      style={{ '--badge-color': '#00e054' } as React.CSSProperties}
+                      title="View on Letterboxd"
+                    >
+                      <span className={styles.ratingBadgeLabel}>Letterboxd</span>
+                      {externalRatings.letterboxd.rating && (
+                        <span className={styles.ratingBadgeValue}>{externalRatings.letterboxd.rating}</span>
+                      )}
+                    </a>
+                  )}
                   {detail.status && detail.status !== 'Released' && (
                     <span className="badge orange">{detail.status}</span>
                   )}
@@ -275,6 +340,66 @@ export default function MovieDetailPage() {
                       <Play size={14} /> Stream
                     </a>
                   )}
+                  {ytInfo?.available && ytInfo.url && (
+                    <a
+                      href={typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+                        ? ytInfo.url.replace('www.youtube.com', 'm.youtube.com')
+                        : ytInfo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`btn ${styles.youtubeBtn}`}
+                      title={ytInfo.channel ? `${ytInfo.channel} · ${Math.floor((ytInfo.duration || 0) / 60)}m` : 'Watch on YouTube'}
+                    >
+                      <Play size={14} /> YouTube
+                    </a>
+                  )}
+                  {detail.trailers && detail.trailers.length > 0 && (
+                    <button className={`btn ${styles.trailerBtn}`} onClick={() => setShowTrailer(true)}>
+                      <Clapperboard size={14} /> Trailer
+                    </button>
+                  )}
+                  <div className={styles.watchlistWrap}>
+                    <button
+                      className={`btn ${watchlistStatus.in_watchlist ? styles.watchlistBtnActive : styles.watchlistBtn}`}
+                      onClick={() => {
+                        if (watchlistStatus.in_watchlist) {
+                          api(`/api/watchlist?tmdb_id=${detail.tmdb_id}&media_type=${detail.type}`, { method: 'DELETE' })
+                            .then(() => { setWatchlistStatus({ in_watchlist: false, category: null }); toast('Removed from watchlist', 'success') })
+                        } else {
+                          setShowWatchlistPicker(!showWatchlistPicker)
+                        }
+                      }}
+                    >
+                      {watchlistStatus.in_watchlist ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+                      {watchlistStatus.in_watchlist ? watchlistStatus.category || 'Saved' : 'Save'}
+                    </button>
+                    {showWatchlistPicker && !watchlistStatus.in_watchlist && (
+                      <div className={styles.watchlistDropdown}>
+                        {['Must Watch', 'Maybe Later', 'Recommended'].map(cat => (
+                          <button
+                            key={cat}
+                            className={styles.watchlistOption}
+                            onClick={async () => {
+                              const r = await api('/api/watchlist', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  tmdb_id: detail.tmdb_id, media_type: detail.type,
+                                  title: detail.title, year: detail.year, poster: detail.poster,
+                                  category: cat,
+                                }),
+                              })
+                              if (!r.error) {
+                                setWatchlistStatus({ in_watchlist: true, category: cat })
+                                toast(`Added to ${cat}`, 'success')
+                              }
+                              setShowWatchlistPicker(false)
+                            }}
+                          >{cat}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
                     className={`btn ${libraryInfo?.in_library ? 'btn-ghost' : 'btn-primary'}`}
                     onClick={async () => {
@@ -384,6 +509,45 @@ export default function MovieDetailPage() {
 
 
       {/* Series season picker modal */}
+      {/* Trailer modal */}
+      {showTrailer && detail.trailers && detail.trailers.length > 0 && (
+        <div className={styles.modalOverlay} onClick={() => setShowTrailer(false)}>
+          <div className={styles.trailerModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>{detail.trailers[0].name}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowTrailer(false)}><X size={16} /></button>
+            </div>
+            <div className={styles.trailerBody}>
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${detail.trailers[0].key}?autoplay=1&rel=0`}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                className={styles.trailerIframe}
+              />
+            </div>
+            {detail.trailers.length > 1 && (
+              <div className={styles.trailerList}>
+                {detail.trailers.map((t, i) => (
+                  <button
+                    key={t.key}
+                    className={styles.trailerListItem}
+                    onClick={() => {
+                      // Swap to top
+                      const iframe = document.querySelector(`.${styles.trailerIframe}`) as HTMLIFrameElement
+                      if (iframe) iframe.src = `https://www.youtube-nocookie.com/embed/${t.key}?autoplay=1&rel=0`
+                    }}
+                  >
+                    <Clapperboard size={12} />
+                    <span>{t.name}</span>
+                    {t.official && <span className="badge green" style={{ fontSize: '0.6rem', padding: '1px 4px' }}>Official</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {showSeasons && !torrentQuery && (
         <div className={styles.modalOverlay} onClick={() => { setShowSeasons(false); setExpandedSeason(null) }}>
           <div className={styles.seasonModal} onClick={e => e.stopPropagation()}>

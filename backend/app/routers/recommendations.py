@@ -1,25 +1,22 @@
 import concurrent.futures
 import random
 import re
-import time
 import urllib.parse
 
 import httpx
-
+from cachetools import TTLCache
 from fastapi import APIRouter
 
 from app.services import tmdb as tmdb_svc
 from app.services import wiki as wiki_svc
 from app.services import jellyfin as jellyfin_svc
+from app.services import ratings as ratings_svc
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
-_cache: dict = {}
-_CACHE_TTL = 86400
-_search_cache: dict = {}
-_SEARCH_TTL = 3600
-_detail_cache: dict = {}
-_DETAIL_TTL = 86400
+_cache: TTLCache = TTLCache(maxsize=200, ttl=86400)
+_search_cache: TTLCache = TTLCache(maxsize=200, ttl=3600)
+_detail_cache: TTLCache = TTLCache(maxsize=300, ttl=86400)
 
 MOOD_CATEGORY_MAP = {
     "feel-good": ["Comedy", "Romance", "Animation", "Adventure", "Family", "Musical"],
@@ -88,25 +85,19 @@ def get_mood(mood: str = "", media_type: str = "movie"):
         media_type = "movie"
 
     cache_key = f"mood:{mood}:{media_type}"
-    now = time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     mood_lower = mood.lower().strip()
     cat_keywords = MOOD_CATEGORY_MAP.get(mood_lower, [mood_lower])
 
     if media_type == "tv":
-        # For TV shows, use TMDB discover directly (wiki KB is movie-only)
-        # TV has different genre IDs — map movie genre keywords to TV genre IDs
         _TV_GENRE_MAP = {
             "action": 10759, "adventure": 10759, "animation": 16, "comedy": 35,
             "crime": 80, "documentary": 99, "drama": 18, "family": 10751,
             "fantasy": 10765, "mystery": 9648, "science fiction": 10765,
             "sci-fi": 10765, "war": 10768, "western": 37,
-            # Moods that map to TV genres
-            "thriller": 80,      # Crime is closest to thriller on TV
-            "horror": 9648,      # Mystery is closest to horror on TV
-            "romance": 18,       # Drama covers romance on TV
+            "thriller": 80, "horror": 9648, "romance": 18,
             "suspense": 9648, "psychological thriller": 9648, "crime thriller": 80,
             "noir": 80, "dark comedy": 35, "psychological": 9648,
             "feel-good": 35, "comfort": 10751, "musical": 18,
@@ -128,9 +119,8 @@ def get_mood(mood: str = "", media_type: str = "movie"):
         results = []
         if tv_ids:
             results = tmdb_svc.discover_by_genres(tv_ids[:3], "tv")
-        # If still not enough, try broader genres
         if len(results) < 10:
-            fallback_ids = [18, 80, 9648]  # Drama, Crime, Mystery
+            fallback_ids = [18, 80, 9648]
             more = tmdb_svc.discover_by_genres(fallback_ids[:2], "tv")
             seen = {r["title"].lower() for r in results}
             for r in more:
@@ -142,7 +132,7 @@ def get_mood(mood: str = "", media_type: str = "movie"):
         for r in results:
             r["torrent_query"] = f"{r['title']} S01 complete"
         result = {"mood": mood, "media_type": media_type, "results": results}
-        _cache[cache_key] = {"data": result, "ts": now}
+        _cache[cache_key] = result
         return result
 
     # Movie path: wiki KB + TMDB discover fallback
@@ -193,7 +183,7 @@ def get_mood(mood: str = "", media_type: str = "movie"):
     results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
 
     result = {"mood": mood, "media_type": media_type, "matched_categories": matched_cats, "results": results}
-    _cache[cache_key] = {"data": result, "ts": now}
+    _cache[cache_key] = result
     return result
 
 
@@ -202,9 +192,8 @@ def get_similar(title: str = ""):
     if not title:
         return {"error": "Missing title parameter"}
     cache_key = f"similar:{title.lower().strip()}"
-    now = time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     tmdb_results, seen_tmdb = tmdb_svc.search_similar(title)
     categories, top100 = wiki_svc.get_kb()
@@ -238,22 +227,20 @@ def get_similar(title: str = ""):
 
     results = results[:30]
 
-    # Better torrent queries for series
     for r in results:
         if r.get("type") in ("series", "tv"):
             r["torrent_query"] = f"{r['title']} S01 complete"
 
     result = {"query": title, "matched_categories": found_categories, "results": results}
-    _cache[cache_key] = {"data": result, "ts": now}
+    _cache[cache_key] = result
     return result
 
 
 @router.get("/library")
 def get_library():
     cache_key = "library"
-    now = time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     genres = []
     library_titles = set()
@@ -310,11 +297,10 @@ def get_library():
         tmdb_id = item.get("tmdb_id", "")
         year = item.get("year", "")
 
-        # Use TMDB ID from Jellyfin directly (most accurate)
         if tmdb_id:
             data = tmdb_svc.fetch(f"/{kind}/{tmdb_id}")
             if data and data.get("id"):
-                poster = f"https://image.tmdb.org/t/p/w300{data['poster_path']}" if data.get("poster_path") else ""
+                poster = f"/api/tmdb-image/w300{data['poster_path']}" if data.get("poster_path") else ""
                 return {
                     "title": item["title"], "year": year or (data.get("release_date") or data.get("first_air_date") or "")[:4],
                     "type": item["type"], "poster": poster,
@@ -325,9 +311,7 @@ def get_library():
                     "torrent_query": f"{item['title']} {year}".strip(),
                 }
 
-        # Fallback: search TMDB by title + year
         import urllib.parse as up
-        query = f"{item['title']}"
         if year:
             query_param = f"/search/{kind}?query={up.quote(item['title'])}&year={year}"
         else:
@@ -335,7 +319,7 @@ def get_library():
         search = tmdb_svc.fetch(query_param)
         if search.get("results"):
             first = search["results"][0]
-            poster = f"https://image.tmdb.org/t/p/w300{first['poster_path']}" if first.get("poster_path") else ""
+            poster = f"/api/tmdb-image/w300{first['poster_path']}" if first.get("poster_path") else ""
             found_year = year or (first.get("release_date") or first.get("first_air_date") or "")[:4]
             return {
                 "title": item["title"], "year": found_year, "type": item["type"],
@@ -359,7 +343,6 @@ def get_library():
     seen = set(library_titles)
 
     def _get_recs(item):
-        # Use Jellyfin's TMDB ID directly if available
         tmdb_id = item.get("tmdb_id", "")
         if tmdb_id:
             kind = "tv" if item["type"] == "series" else "movie"
@@ -368,7 +351,7 @@ def get_library():
             for s in recs.get("results", [])[:10]:
                 s_title = s.get("title") or s.get("name", "")
                 year = (s.get("release_date") or s.get("first_air_date") or "")[:4]
-                poster = f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else ""
+                poster = f"/api/tmdb-image/w300{s['poster_path']}" if s.get("poster_path") else ""
                 s_type = "series" if kind == "tv" else "movie"
                 torrent_q = f"{s_title} S01 complete" if s_type == "series" else f"{s_title} {year}".strip()
                 results.append({
@@ -407,11 +390,9 @@ def get_library():
                 seen.add(key)
                 suggestions.append(rec)
 
-    # Sort by rating (highest first), then limit
     suggestions.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
     suggestions = suggestions[:30]
 
-    # Build better torrent queries for series
     for s in suggestions:
         if s.get("type") in ("series", "tv"):
             s["torrent_query"] = f"{s['title']} S01 complete"
@@ -422,7 +403,7 @@ def get_library():
         "library_items": library_items,
         "suggestions": suggestions,
     }
-    _cache[cache_key] = {"data": result, "ts": now}
+    _cache[cache_key] = result
     return result
 
 
@@ -431,36 +412,31 @@ def get_trending(time_window: str = "week"):
     if time_window not in ("day", "week"):
         time_window = "week"
     cache_key = f"trending:{time_window}"
-    now = time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     results = tmdb_svc.get_trending(time_window)
-
-    # Sort by rating
     results.sort(key=lambda x: float(x.get("rating") or 0), reverse=True)
 
-    # Better torrent queries for series
     for r in results:
         if r.get("type") in ("series", "tv"):
             r["torrent_query"] = f"{r['title']} S01 complete"
 
     result = {"results": results, "time_window": time_window}
-    _cache[cache_key] = {"data": result, "ts": now}
+    _cache[cache_key] = result
     return result
 
 
 @router.get("/categories")
 def get_categories():
     cache_key = "categories_list"
-    now = time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
+    if cache_key in _cache:
+        return _cache[cache_key]
 
     categories, _ = wiki_svc.get_kb()
     cat_list = [{"name": name, "count": len(movies)} for name, movies in sorted(categories.items())]
     result = {"categories": cat_list, "total_movies": sum(c["count"] for c in cat_list)}
-    _cache[cache_key] = {"data": result, "ts": now}
+    _cache[cache_key] = result
     return result
 
 
@@ -470,7 +446,6 @@ def autocomplete(q: str = ""):
         return {"results": []}
     results = []
     seen = set()
-    # TMDB search first
     tmdb_results = tmdb_svc.multi_search(q)
     for item in tmdb_results:
         key = item["title"].lower()
@@ -484,7 +459,6 @@ def autocomplete(q: str = ""):
             })
         if len(results) >= 10:
             break
-    # Fill remaining slots from wiki KB
     if len(results) < 10:
         query_lower = q.lower().strip()
         categories, top100 = wiki_svc.get_kb()
@@ -514,12 +488,11 @@ def search(q: str = ""):
     if not q or len(q) < 2:
         return {"results": []}
     cache_key = f"search:{q.lower().strip()}"
-    now = time.time()
-    if cache_key in _search_cache and (now - _search_cache[cache_key]["ts"]) < _SEARCH_TTL:
-        return _search_cache[cache_key]["data"]
+    if cache_key in _search_cache:
+        return _search_cache[cache_key]
     results = tmdb_svc.multi_search(q)
     result = {"results": results}
-    _search_cache[cache_key] = {"data": result, "ts": now}
+    _search_cache[cache_key] = result
     return result
 
 
@@ -528,9 +501,8 @@ def get_detail(tmdb_id: str = "", type: str = "movie"):
     if not tmdb_id:
         return {"error": "Missing tmdb_id parameter"}
     cache_key = f"detail:{type}:{tmdb_id}"
-    now = time.time()
-    if cache_key in _detail_cache and (now - _detail_cache[cache_key]["ts"]) < _DETAIL_TTL:
-        return _detail_cache[cache_key]["data"]
+    if cache_key in _detail_cache:
+        return _detail_cache[cache_key]
 
     result = tmdb_svc.get_detail(tmdb_id, type)
 
@@ -568,7 +540,7 @@ def get_detail(tmdb_id: str = "", type: str = "movie"):
                     t = "tv" if m.get("type") == "series" else "movie"
                     data = tmdb_svc.fetch(f"/{t}/{m['tmdb_id']}")
                     if data and data.get("poster_path"):
-                        m["poster"] = f"https://image.tmdb.org/t/p/w500{data['poster_path']}"
+                        m["poster"] = f"/api/tmdb-image/w500{data['poster_path']}"
                     if data and data.get("vote_average"):
                         m["rating"] = round(data["vote_average"], 1)
                 except Exception:
@@ -578,7 +550,35 @@ def get_detail(tmdb_id: str = "", type: str = "movie"):
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
             result["similar_kb"] = list(pool.map(_fetch_kb_poster, similar_kb_raw))
 
-    _detail_cache[cache_key] = {"data": result, "ts": now}
+    _detail_cache[cache_key] = result
+    return result
+
+
+@router.get("/external-ratings")
+def get_external_ratings(
+    tmdb_id: str = "", type: str = "movie",
+    imdb_id: str = "", title: str = "", year: str = "",
+):
+    """Get IMDB and Letterboxd ratings for a movie/series."""
+    if not tmdb_id and not imdb_id and not title:
+        return {"error": "Missing tmdb_id or title"}
+
+    cache_key = f"ext_ratings:{type}:{tmdb_id or imdb_id or title}"
+    if cache_key in _detail_cache:
+        return _detail_cache[cache_key]
+
+    if not imdb_id and tmdb_id:
+        external_ids = tmdb_svc.get_external_ids(tmdb_id, type)
+        imdb_id = external_ids.get("imdb_id", "")
+    if not title and tmdb_id:
+        kind = "tv" if type in ("tv", "series") else "movie"
+        details = tmdb_svc.fetch(f"/{kind}/{tmdb_id}")
+        title = details.get("title") or details.get("name") or ""
+        year = year or (details.get("release_date") or details.get("first_air_date") or "")[:4]
+
+    ratings = ratings_svc.get_external_ratings(imdb_id, title, year)
+    result = {"tmdb_id": tmdb_id, "imdb_id": imdb_id, **ratings}
+    _detail_cache[cache_key] = result
     return result
 
 
@@ -588,7 +588,6 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
     if not tmdb_id:
         return {"error": "Missing tmdb_id"}
 
-    # Get season info from TMDB
     tmdb_data = tmdb_svc.fetch(f"/tv/{tmdb_id}")
     if not tmdb_data or "id" not in tmdb_data:
         return {"error": "Series not found on TMDB"}
@@ -598,17 +597,16 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
     for s in tmdb_data.get("seasons", []):
         sn = s.get("season_number", 0)
         if sn == 0:
-            continue  # Skip specials
+            continue
         tmdb_seasons.append({
             "season_number": sn,
             "name": s.get("name", f"Season {sn}"),
             "episode_count": s.get("episode_count", 0),
             "air_date": s.get("air_date", ""),
-            "poster": f"https://image.tmdb.org/t/p/w300{s['poster_path']}" if s.get("poster_path") else "",
+            "poster": f"/api/tmdb-image/w300{s['poster_path']}" if s.get("poster_path") else "",
         })
 
-    # Check Jellyfin for existing seasons/episodes
-    jellyfin_seasons = {}  # {season_number: [episode_numbers]}
+    jellyfin_seasons = {}
     try:
         users_data = jellyfin_svc.request("/Users")
         user_id = ""
@@ -616,7 +614,6 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
             user_id = users_data[0].get("Id", "")
 
         if user_id:
-            # Find the series in Jellyfin by name
             search = jellyfin_svc.request(
                 f"/Users/{user_id}/Items?IncludeItemTypes=Series&Recursive=true"
                 f"&SearchTerm={urllib.parse.quote(series_title)}"
@@ -630,7 +627,6 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
                         break
 
             if jf_series_id:
-                # Get all episodes for this series
                 episodes = jellyfin_svc.request(
                     f"/Shows/{jf_series_id}/Episodes?userId={user_id}"
                     f"&Fields=IndexNumber,ParentIndexNumber"
@@ -644,7 +640,6 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
     except Exception:
         pass
 
-    # Fetch episode details per season from TMDB (parallel)
     def _fetch_season_episodes(sn):
         data = tmdb_svc.fetch(f"/tv/{tmdb_id}/season/{sn}")
         eps = []
@@ -659,14 +654,13 @@ def get_series_seasons(tmdb_id: str = "", title: str = ""):
         return sn, eps
 
     season_numbers = [ts["season_number"] for ts in tmdb_seasons]
-    tmdb_episodes = {}  # {season_number: [episode_list]}
+    tmdb_episodes = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
         futures = [pool.submit(_fetch_season_episodes, sn) for sn in season_numbers]
         for f in concurrent.futures.as_completed(futures):
             sn, eps = f.result()
             tmdb_episodes[sn] = eps
 
-    # Build result with per-season status and episode details
     seasons = []
     for ts in tmdb_seasons:
         sn = ts["season_number"]

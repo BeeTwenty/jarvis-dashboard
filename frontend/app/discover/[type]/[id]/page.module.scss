@@ -140,6 +140,155 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+// External rating badges (IMDB, Letterboxd)
+.ratingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-decoration: none;
+  transition: background $duration-fast, border-color $duration-fast, transform $duration-fast;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: var(--badge-color, rgba(255, 255, 255, 0.3));
+    transform: translateY(-1px);
+  }
+}
+
+.ratingBadgeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--badge-color, rgba(255, 255, 255, 0.7));
+}
+
+.ratingBadgeValue {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: $font-mono;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+// Trailer button
+.trailerBtn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  &:hover { background: rgba(255, 255, 255, 0.18) !important; }
+}
+
+// Trailer modal
+.trailerModal {
+  @include card;
+  width: 100%;
+  max-width: 860px;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp $duration-normal $ease-smooth both;
+  overflow: hidden;
+}
+
+.trailerBody {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; // 16:9 aspect ratio
+  background: #000;
+}
+
+.trailerIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.trailerList {
+  display: flex;
+  gap: $space-xs;
+  padding: $space-md $space-lg;
+  overflow-x: auto;
+  border-top: 1px solid var(--subtle-border);
+}
+
+.trailerListItem {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+  padding: 6px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-family: $font-sans;
+  font-size: $text-xs;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background $duration-fast, color $duration-fast;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+// Watchlist button
+.watchlistWrap {
+  position: relative;
+}
+
+.watchlistBtn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  &:hover { background: rgba(255, 255, 255, 0.18) !important; }
+}
+
+.watchlistBtnActive {
+  background: rgba($blue, 0.2) !important;
+  color: $blue !important;
+  border: 1px solid rgba($blue, 0.3) !important;
+  &:hover { background: rgba($blue, 0.3) !important; }
+}
+
+.watchlistDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: $radius-sm;
+  box-shadow: var(--glass-shadow-lg);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 160px;
+  animation: fadeIn $duration-fast $ease-smooth both;
+}
+
+.watchlistOption {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--row-border);
+  font-family: $font-sans;
+  font-size: $text-sm;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background $duration-fast;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--bg-hover); }
+}
+
 .heroGenres {
   display: flex;
   gap: $space-xs;
@@ -180,6 +329,13 @@
   background: $purple !important;
   color: white !important;
   &:hover { background: darken($purple, 8%) !important; }
+}
+
+.youtubeBtn {
+  background: #ff0000 !important;
+  color: white !important;
+  text-decoration: none !important;
+  &:hover { background: darken(#ff0000, 10%) !important; }
 }
 
 // Content sections
