@@ -29,7 +29,7 @@ Jarvis integrates a recommendation engine directly into the dashboard. Browse by
 
 ![Movie Detail](./docs/screenshots/movie-detail-dark.png)
 
-**Torrent Integration** — Every recommendation includes a "Find Torrent" button that searches available sources and adds directly to qBittorrent.
+**Torrent Integration** — Every recommendation includes a "Find Torrent" button that searches available sources and adds directly to your torrent client (Transmission or qBittorrent).
 
 ![Torrent Search](./docs/screenshots/discover-torrent-modal-dark.png)
 
@@ -74,7 +74,7 @@ Dark and light modes with system preference detection.
 ```
 Browser ──→ Next.js (3000) ──→ Python Backend (8002) ──┬──→ Docker CLI
                                                         ├──→ Jellyfin API (8096)
-                                                        ├──→ qBittorrent API (8080)
+                                                        ├──→ Transmission / qBittorrent
                                                         ├──→ TMDB API
                                                         ├──→ Reddit Wiki
                                                         └──→ System (/proc, du, etc.)
@@ -86,7 +86,7 @@ Browser ──→ Next.js (3000) ──→ Python Backend (8002) ──┬──
 | Backend | FastAPI, Pydantic, httpx, uvicorn |
 | Icons | Lucide React |
 | Theme | CSS custom properties, localStorage |
-| Data Sources | TMDB, Jellyfin, qBittorrent, Docker, Reddit Wiki, wttr.in |
+| Data Sources | TMDB, Jellyfin, Transmission/qBittorrent, Docker, Reddit Wiki, wttr.in |
 
 The backend follows a standard FastAPI project structure — routers for each API group, service modules for business logic, and Pydantic settings for configuration. Auto-generated API documentation is available at `/docs`.
 
@@ -94,16 +94,25 @@ The backend follows a standard FastAPI project structure — routers for each AP
 
 ## Getting Started
 
+### Docker (recommended)
+
 ```bash
 git clone https://github.com/Animesh98/jarvis-dashboard.git
 cd jarvis-dashboard
 
 cp .env.example .env
-# Set your keys in .env:
-#   JELLYFIN_API_KEY=...
-#   QBIT_USER=...
-#   QBIT_PASS=...
-#   TMDB_API_KEY=...    (free at themoviedb.org)
+# Edit .env with your keys (see Configuration below)
+
+docker compose up -d --build
+```
+
+Open `http://localhost:3000`. API docs at `http://localhost:8002/docs`.
+
+### Bare metal
+
+```bash
+cp .env.example .env
+# Edit .env with your keys (see Configuration below)
 
 # Backend
 cd backend
@@ -112,12 +121,29 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8002 &
 
 # Frontend
-cd ../frontend && npm install && npm run dev
+cd ../frontend && npm install && npm run build && npm start
 ```
 
-Open `http://localhost:3000`. API docs at `http://localhost:8002/docs`.
+### Configuration
 
-**Requirements:** Python 3.10+, Node.js 18+, Docker, Jellyfin, and qBittorrent accessible on the local network.
+Copy `.env.example` to `.env` and set your values:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JELLYFIN_API_KEY` | Yes | Jellyfin API key |
+| `TMDB_API_KEY` | Yes | Free at [themoviedb.org](https://www.themoviedb.org/settings/api) |
+| `TORRENT_CLIENT` | No | `transmission` (default) or `qbittorrent` |
+| `TRANSMISSION_BASE` | No | Transmission RPC URL (default: `http://localhost:9091/transmission/rpc`) |
+| `TRANSMISSION_USER` | No | Transmission username |
+| `TRANSMISSION_PASS` | No | Transmission password |
+| `QBIT_BASE` | No | qBittorrent API URL (default: `http://localhost:8080/api/v2`) |
+| `QBIT_USER` | No | qBittorrent username |
+| `QBIT_PASS` | No | qBittorrent password |
+| `MEDIA_PATH` | No | Media root path (default: `/data/media`) |
+| `JELLYFIN_BASE` | No | Jellyfin URL (default: `http://localhost:8096`) |
+| `WEATHER_CITY` | No | City name for weather widget |
+
+**Requirements (bare metal):** Python 3.10+, Node.js 18+, Docker engine, Jellyfin, and Transmission or qBittorrent accessible on the local network.
 
 ---
 
@@ -148,8 +174,13 @@ Open `http://localhost:3000`. API docs at `http://localhost:8002/docs`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/torrent-search?q=X` | Search available torrents |
-| POST | `/api/torrent-add` | Add magnet link to qBittorrent |
-| GET/POST | `/api/qbit/*` | Proxy to qBittorrent Web API |
+| POST | `/api/torrent-add` | Add magnet link to torrent client |
+| GET | `/api/torrents/list` | List all torrents (normalized) |
+| GET | `/api/torrents/transfer` | Download/upload speed info |
+| POST | `/api/torrents/pause` | Pause torrents |
+| POST | `/api/torrents/resume` | Resume torrents |
+| POST | `/api/torrents/delete` | Remove torrents |
+| GET/POST | `/api/qbit/*` | Legacy proxy to qBittorrent Web API |
 
 ### Media
 
