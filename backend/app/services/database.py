@@ -1,10 +1,12 @@
 """SQLite database service for persistent user data (watchlist, ratings, etc.)."""
 
+import os
 import sqlite3
 import threading
 from pathlib import Path
 
-_DB_PATH = Path(__file__).parent.parent.parent / "jarvis.db"
+_DATA_DIR = Path(os.environ.get("DATA_DIR", str(Path(__file__).parent.parent.parent)))
+_DB_PATH = _DATA_DIR / "jarvis.db"
 _lock = threading.Lock()
 
 

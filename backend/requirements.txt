@@ -4,3 +4,5 @@ httpx==0.28.1
 pydantic-settings==2.9.1
 python-dotenv==1.1.0
 yt-dlp==2026.3.17
+cachetools==6.0.0
+markdown==3.7

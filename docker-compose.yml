@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    container_name: jarvis-backend
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - backend-data:/app/data
+    ports:
+      - "8002:8002"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8002
+    container_name: jarvis-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  backend-data:
