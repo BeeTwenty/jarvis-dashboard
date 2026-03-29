@@ -5,9 +5,15 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8002
 
+    torrent_client: str = "transmission"  # "transmission" or "qbittorrent"
+
     qbit_base: str = "http://localhost:8080/api/v2"
     qbit_user: str = ""
     qbit_pass: str = ""
+
+    transmission_base: str = "http://localhost:9091/transmission/rpc"
+    transmission_user: str = ""
+    transmission_pass: str = ""
 
     jellyfin_base: str = "http://localhost:8096"
     jellyfin_api_key: str = ""

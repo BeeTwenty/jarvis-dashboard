@@ -166,3 +166,53 @@ def clean_completed() -> dict:
         return {"ok": True, "message": "No completed torrents to clean"}
     except Exception as e:
         return {"error": str(e)}
+
+
+def get_torrents() -> list:
+    """Get all torrents in normalized format."""
+    torrents = request("/torrents/info")
+    if isinstance(torrents, dict) and torrents.get("error"):
+        return torrents
+    return [_normalize_torrent(t) for t in torrents]
+
+
+def get_transfer_info() -> dict:
+    """Get transfer info in normalized format."""
+    data = request("/transfer/info")
+    if isinstance(data, dict) and data.get("error"):
+        return data
+    return {
+        "dl_info_speed": data.get("dl_info_speed", 0),
+        "up_info_speed": data.get("up_info_speed", 0),
+    }
+
+
+def pause_torrent(hashes: list[str]) -> dict:
+    return request(f"/torrents/stop?hashes={'|'.join(hashes)}", method="POST")
+
+
+def resume_torrent(hashes: list[str]) -> dict:
+    return request(f"/torrents/start?hashes={'|'.join(hashes)}", method="POST")
+
+
+def delete_torrent(hashes: list[str], delete_files: bool = False) -> dict:
+    return request(
+        f"/torrents/delete?hashes={'|'.join(hashes)}&deleteFiles={'true' if delete_files else 'false'}",
+        method="POST",
+    )
+
+
+def _normalize_torrent(t: dict) -> dict:
+    """Convert qBittorrent torrent to normalized format."""
+    return {
+        "hash": t.get("hash", ""),
+        "name": t.get("name", "Unknown"),
+        "size": t.get("size", 0),
+        "progress": t.get("progress", 0),
+        "dlspeed": t.get("dlspeed", 0),
+        "upspeed": t.get("upspeed", 0),
+        "eta": t.get("eta", 0),
+        "state": t.get("state", "unknown"),
+        "category": t.get("category", ""),
+        "save_path": t.get("save_path", ""),
+    }

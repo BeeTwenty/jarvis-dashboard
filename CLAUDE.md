@@ -67,7 +67,7 @@ Browser → Next.js (:3000) → rewrites /api/* → FastAPI (:8002) → external
 
 ## Environment
 
-Copy `.env.example` to `.env` at project root. Required: `JELLYFIN_API_KEY`, `QBIT_USER`, `QBIT_PASS`, `TMDB_API_KEY`. Optional: `MEDIA_PATH`, `FILE_HOME`, `WEATHER_CITY`, `JELLYFIN_BASE`, `QBIT_BASE`.
+Copy `.env.example` to `.env` at project root. Required: `JELLYFIN_API_KEY`, `TMDB_API_KEY`. Set `TORRENT_CLIENT` to `transmission` (default) or `qbittorrent`, then fill in the matching credentials (`TRANSMISSION_USER`/`TRANSMISSION_PASS` or `QBIT_USER`/`QBIT_PASS`). Optional: `MEDIA_PATH`, `FILE_HOME`, `WEATHER_CITY`, `JELLYFIN_BASE`, `TRANSMISSION_BASE`, `QBIT_BASE`.
 
 ## Key files
 

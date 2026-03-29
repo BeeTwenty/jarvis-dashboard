@@ -2,11 +2,17 @@ import subprocess
 
 from fastapi import APIRouter
 
+from app.config import settings
 from app.services import jellyfin as jellyfin_svc
 from app.services import qbittorrent as qbit_svc
+from app.services import transmission as trans_svc
 from app.services import docker as docker_svc
 
 router = APIRouter(prefix="/api/actions", tags=["actions"])
+
+
+def _torrent_svc():
+    return trans_svc if settings.torrent_client == "transmission" else qbit_svc
 
 
 @router.post("/jellyfin-scan")
@@ -16,7 +22,7 @@ def jellyfin_scan():
 
 @router.post("/clean-torrents")
 def clean_torrents():
-    return qbit_svc.clean_completed()
+    return _torrent_svc().clean_completed()
 
 
 @router.post("/docker-prune")

@@ -124,7 +124,7 @@ export default function TorrentsPage() {
   }
 
   async function toggleTorrent(hash: string, isPaused: boolean) {
-    await api(`/api/qbit/torrents/${isPaused ? 'start' : 'stop'}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: `hashes=${hash}` })
+    await api(`/api/torrents/${isPaused ? 'resume' : 'pause'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hashes: [hash] }) })
     setTimeout(refreshFast, 800)
   }
 
@@ -135,10 +135,10 @@ export default function TorrentsPage() {
 
   async function confirmRemove() {
     if (!removeTarget) return
-    const r = await api(`/api/qbit/torrents/delete`, {
+    const r = await api(`/api/torrents/delete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `hashes=${removeTarget.hash}&deleteFiles=${deleteFiles}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hashes: [removeTarget.hash], delete_files: deleteFiles }),
     })
     toast(r.error ? r.error : `Removed: ${removeTarget.name.substring(0, 50)}`, r.error ? 'error' : 'success')
     setRemoveTarget(null)
@@ -148,10 +148,10 @@ export default function TorrentsPage() {
   async function cleanOne(hash: string, name: string) {
     // Optimistic: hide immediately
     setHiddenHashes(prev => new Set(prev).add(hash))
-    const r = await api(`/api/qbit/torrents/delete`, {
+    const r = await api(`/api/torrents/delete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `hashes=${hash}&deleteFiles=false`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hashes: [hash], delete_files: false }),
     })
     if (r.error) {
       // Restore on failure
@@ -166,11 +166,11 @@ export default function TorrentsPage() {
     // Optimistic: hide all immediately
     const hashes = items.map(t => t.hash)
     setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.add(h)); return s })
-    // Batch delete via qBit API (all hashes in one call)
-    const r = await api(`/api/qbit/torrents/delete`, {
+    // Batch delete via API (all hashes in one call)
+    const r = await api(`/api/torrents/delete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `hashes=${hashes.join('|')}&deleteFiles=false`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hashes, delete_files: false }),
     })
     if (r.error) {
       setHiddenHashes(prev => { const s = new Set(prev); hashes.forEach(h => s.delete(h)); return s })

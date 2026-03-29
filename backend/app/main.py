@@ -9,6 +9,7 @@ from fastapi.responses import Response, PlainTextResponse
 from app.config import settings
 from app.routers import system, docker, torrents, media, recommendations, files, actions, streaming, tasks, watchlist
 from app.services import qbittorrent as qbit_svc
+from app.services import transmission as trans_svc
 from app.services import system as system_svc
 from app.services import database as db_svc
 
@@ -38,8 +39,11 @@ def tmdb_image_proxy(path: str):
 async def lifespan(app: FastAPI):
     # Init database
     db_svc.init_db()
-    # Start bandwidth collector (polls qBittorrent every 5s)
-    system_svc.start_bandwidth_collector(qbit_svc.request)
+    # Start bandwidth collector (polls torrent client every 5s)
+    if settings.torrent_client == "transmission":
+        system_svc.start_bandwidth_collector(lambda _path: trans_svc.get_transfer_info())
+    else:
+        system_svc.start_bandwidth_collector(qbit_svc.request)
     # Prefetch storage cache
     threading.Thread(target=system_svc.get_storage, daemon=True).start()
     print(f"Jarvis Dashboard running on http://{settings.host}:{settings.port}")
